@@ -5,7 +5,7 @@ import { processAbp, processPenempatan } from "./bankLain.js";
 import { processNeraca } from "./neraca.js";
 
 // SHA-256 hex dari PIN. Diisi saat build. (PIN disimpan sbg hash, bukan teks asli.)
-const PIN_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+const PIN_HASH = "51e88e41cab453ae0c42874b2b9fa6fb152f5a1ae9355c8055a11062143f5bc6";
 const XLSX = window.XLSX, JSZip = window.JSZip;
 const DASH_KEY = "lbbprs_dashboard_v1";
 
