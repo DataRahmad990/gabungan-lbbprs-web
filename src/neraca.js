@@ -2,8 +2,11 @@
 // Browser stateless: tren lama dikasih lewat priorTrendBytes (opsional).
 import * as H from "./helpers.js";
 
+// recon: baris jumlah otomatis. Ijarah(180) + Piutang Sewa(160), karena Piutang Sewa
+// footnote 11) = bagian skema Ijarah, di neraca kepisah jadi 2 baris.
+const RECON_IJARAH = { key: "RK-IJR", label: "Ijarah + Piutang Sewa (rekon)", components: ["180", "160"] };
 const FORMS = [
-  { prefix: "LBBPRS-GB0200-", sheet: "Neraca", sandi: 11, label: 5, nilai: 14 },
+  { prefix: "LBBPRS-GB0200-", sheet: "Neraca", sandi: 11, label: 5, nilai: 14, recon: RECON_IJARAH },
   { prefix: "LBBPRS-GB0300-", sheet: "Laba Rugi", sandi: 9, label: 4, nilai: 11 },
 ];
 
@@ -33,7 +36,7 @@ function parseForm(bytes, cfg, XLSX) {
 }
 
 // Bangun tabel tren: gabung sheet lama (aoa) dengan kolom periode baru.
-function upsertAoa(priorAoa, posRows, periodeLabel) {
+function upsertAoa(priorAoa, posRows, periodeLabel, recon = null) {
   // priorAoa: [["Sandi","Pos","FEB2026",...], [..], ...] atau null
   let header, body;
   if (priorAoa && priorAoa.length) {
@@ -61,6 +64,25 @@ function upsertAoa(priorAoa, posRows, periodeLabel) {
     while (body[i].length < header.length) body[i].push(null);
     body[i][pcol] = nilai;
   }
+
+  // Baris rekonsiliasi: jumlah komponen (mis. Ijarah 180 + Piutang Sewa 160)
+  if (recon) {
+    const nilaiMap = new Map(posRows.map(([s, l, n]) => [s, n]));
+    const komp = recon.components.map(s => nilaiMap.get(s));
+    if (komp.some(v => v !== undefined)) {
+      const total = komp.reduce((a, v) => a + (v || 0), 0);
+      let i = sandiRow.get(recon.key);
+      if (i === undefined) {
+        const row = new Array(header.length).fill(null);
+        row[0] = recon.key; row[1] = recon.label;
+        body.push(row);
+        i = body.length - 1;
+        sandiRow.set(recon.key, i);
+      }
+      while (body[i].length < header.length) body[i].push(null);
+      body[i][pcol] = total;
+    }
+  }
   return [header, ...body];
 }
 
@@ -81,7 +103,7 @@ export function processNeraca(files, period, XLSX, priorTrendBytes = null) {
     if (prior && prior.Sheets[cfg.sheet]) {
       priorAoa = XLSX.utils.sheet_to_json(prior.Sheets[cfg.sheet], { header: 1, defval: null });
     }
-    const aoa = upsertAoa(priorAoa, posRows, period.periodeLabel);
+    const aoa = upsertAoa(priorAoa, posRows, period.periodeLabel, cfg.recon || null);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = [{ wch: 10 }, { wch: 55 }, ...aoa[0].slice(2).map(() => ({ wch: 18 }))];
     XLSX.utils.book_append_sheet(wb, ws, cfg.sheet);
