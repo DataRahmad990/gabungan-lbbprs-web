@@ -1,0 +1,12 @@
+// auto-generated dari core/abpData.py
+
+export const SANDI_MAP_NAMES = {"Hubungan dgn Bank": "SANDI_HUBUNGAN_BANK", "Jenis Operasional": "SANDI_JENIS_OPERASIONAL", "Jenis Instrumen": "SANDI_JENIS_INSTRUMEN", "Jenis Akad": "SANDI_JENIS_AKAD", "Metode Bagi Hasil": "SANDI_METODE_BH", "Alasan Diblokir": "SANDI_ALASAN_DIBLOKIR"};
+export const SANDI_ALASAN_DIBLOKIR = {"1": "Escrow Account", "2": "Cash Collateral", "9": "Lainnya"};
+export const SANDI_HUBUNGAN_BANK = {"1": "Terkait", "2": "Tidak Terkait"};
+export const SANDI_JENIS_AKAD = {"1": "Wadiah", "2": "Mudarabah", "9": "Lainnya"};
+export const SANDI_JENIS_INSTRUMEN = {"1": "Tabungan Umum", "2": "Tab Khusus Lembaga Pengayom", "6": "Tab Khusus BPRS Lain-Likuiditas", "3": "Deposito Umum", "4": "Deposito Khusus Lembaga Pengayom", "5": "Deposito Khusus BPRS Lain-Likuiditas", "9": "Lainnya"};
+export const SANDI_JENIS_OPERASIONAL = {"1": "Syariah", "2": "Konvensional"};
+export const SANDI_MAP = {"Hubungan dgn Bank": {"1": "Terkait", "2": "Tidak Terkait"}, "Jenis Operasional": {"1": "Syariah", "2": "Konvensional"}, "Jenis Instrumen": {"1": "Tabungan Umum", "2": "Tab Khusus Lembaga Pengayom", "6": "Tab Khusus BPRS Lain-Likuiditas", "3": "Deposito Umum", "4": "Deposito Khusus Lembaga Pengayom", "5": "Deposito Khusus BPRS Lain-Likuiditas", "9": "Lainnya"}, "Jenis Akad": {"1": "Wadiah", "2": "Mudarabah", "9": "Lainnya"}, "Metode Bagi Hasil": {"1": "Muthlaqah Profit Sharing", "2": "Muthlaqah Nonprofit Sharing", "3": "Muqayyadah Profit Sharing", "4": "Muqayyadah Nonprofit Sharing"}, "Alasan Diblokir": {"1": "Escrow Account", "2": "Cash Collateral", "9": "Lainnya"}};
+export const SANDI_METODE_BH = {"1": "Muthlaqah Profit Sharing", "2": "Muthlaqah Nonprofit Sharing", "3": "Muqayyadah Profit Sharing", "4": "Muqayyadah Nonprofit Sharing"};
+export const COL_MAP = {"ID Pihak Lawan": 3, "Sandi Bank": 4, "Hubungan dgn Bank": 5, "Jenis Operasional": 10, "Jenis Instrumen": 11, "Tanggal Mulai": 13, "Tanggal Jatuh Tempo": 14, "Jenis Akad": 16, "Metode Bagi Hasil": 17, "Persentase Nisbah": 20, "Imbalan Awal Kontrak (%)": 24, "Imbalan Bulan Laporan (%)": 25, "Jumlah": 26, "Nominal Diblokir": 27, "Alasan Diblokir": 28};
+export const OUTPUT_COLS = ["Cabang", "Sandi Bank", "ID Pihak Lawan", "Jenis Operasional", "Hubungan dgn Bank", "Jenis Instrumen", "Jenis Akad", "Tanggal Mulai", "Tanggal Jatuh Tempo", "Metode Bagi Hasil", "Persentase Nisbah", "Imbalan Awal Kontrak (%)", "Imbalan Bulan Laporan (%)", "Jumlah", "Nominal Diblokir", "Alasan Diblokir", "Baris Asli"];

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gabung Data Bulanan LBBPRS</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --biru:#1F4E79; --abu:#f3f4f6; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,sans-serif; max-width:920px;
+         margin:32px auto; padding:0 16px; color:#222; }
+  h1 { color:var(--biru); margin-bottom:4px; }
+  .sub { color:#666; margin-top:0; font-size:14px; }
+  .card { border:1px solid #e3e3e3; border-radius:12px; padding:20px; margin:18px 0;
+          box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .drop { border:2px dashed #9bb6d1; border-radius:10px; padding:34px; text-align:center;
+          background:#fafcff; cursor:pointer; }
+  .drop.drag { background:#eef5ff; border-color:var(--biru); }
+  .drop p { margin:8px 0; color:#555; }
+  button { background:var(--biru); color:#fff; border:0; padding:11px 22px; border-radius:8px;
+           font-size:15px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:#fff; color:var(--biru); border:1px solid var(--biru); }
+  table { border-collapse:collapse; width:100%; margin-top:10px; font-size:14px; }
+  th,td { border:1px solid #e3e3e3; padding:8px 10px; text-align:left; }
+  th { background:var(--abu); }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pill { background:#eef5ff; color:var(--biru); padding:2px 8px; border-radius:20px; font-size:12px; }
+  .dl { display:inline-block; background:var(--biru); color:#fff; padding:9px 16px; border-radius:8px;
+        text-decoration:none; margin:5px 6px 5px 0; font-size:14px; }
+  .note { font-size:12px; color:#888; margin-top:24px; line-height:1.6; }
+  .warn { color:#b66a00; }
+  /* PIN gate */
+  #gate { position:fixed; inset:0; background:#0f2237; color:#fff; display:flex;
+          flex-direction:column; align-items:center; justify-content:center; z-index:99; }
+  #gate input { font-size:24px; letter-spacing:8px; text-align:center; padding:10px 16px;
+                border-radius:8px; border:0; width:200px; }
+  #gate .err { color:#ff9b9b; height:20px; margin-top:10px; }
+  .opt { font-size:13px; color:#555; margin-top:10px; }
+  .opt input { font-size:13px; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h2>Masukin PIN</h2>
+  <input id="pin" type="password" inputmode="numeric" maxlength="12" autofocus placeholder="••••">
+  <div class="err" id="pinErr"></div>
+  <button id="pinBtn">Masuk</button>
+  <p style="opacity:.6; font-size:12px; margin-top:24px; max-width:320px; text-align:center;">
+    Data yang lu upload diproses di browser ini langsung, nggak dikirim ke server mana pun.</p>
+</div>
+
+<div id="app" style="display:none;">
+  <h1>Gabung Data Bulanan LBBPRS</h1>
+  <p class="sub">Upload 1 file ZIP laporan bulanan, langsung jadi Excel gabungan siap pakai. Semua diproses di browser ini, data nggak ke internet.</p>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <strong>Drag ZIP ke sini</strong> atau klik buat pilih file
+      <p>contoh: LBBPRS-LBBPRS01-K-...-20260228-620086-...zip</p>
+      <input type="file" id="file" accept=".zip" hidden>
+      <div id="fname" style="margin-top:8px; color:var(--biru); font-weight:600;"></div>
+    </label>
+
+    <div class="opt">
+      <label><input type="checkbox" id="useTrend"> Gabung neraca dengan tren bulan lalu (opsional)</label>
+      <input type="file" id="trendFile" accept=".xlsx" hidden>
+      <span id="trendName" style="color:var(--biru);"></span>
+    </div>
+
+    <div style="text-align:center; margin-top:16px;">
+      <button id="go" disabled>Proses</button>
+      <span id="status" style="margin-left:10px; color:#666;"></span>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none;">
+    <h3 style="margin-top:0;">Hasil <span id="resPeriode" class="pill"></span></h3>
+    <div id="links"></div>
+    <div id="resWarn" class="warn"></div>
+    <div id="resSummary" style="font-size:14px; color:#444; margin-top:10px;"></div>
+  </div>
+
+  <h2 style="color:var(--biru); font-size:19px;">Bulan yang udah diproses (di komputer ini)</h2>
+  <div id="dash"></div>
+  <p><button class="ghost" id="clearDash">Hapus riwayat</button></p>
+
+  <p class="note">
+    Stateless: nggak ada file yang disimpen ke server. Riwayat di atas cuma di browser lu (localStorage), bisa dihapus kapan aja.<br>
+    Data laporan bank sifatnya rahasia, app ini sengaja nggak ngirim apa-apa ke internet.
+  </p>
+</div>
+
+<!-- Library di-vendor lokal (bukan CDN) biar nol fetch ke luar, aman utk data sensitif + bisa offline -->
+<script src="./vendor/xlsx.bundle.js"></script>
+<script src="./vendor/jszip.min.js"></script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
