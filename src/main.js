@@ -7,11 +7,12 @@ import { processKredit } from "./kredit.js";
 import { processPenempatanKonven } from "./bankLainKonven.js";
 import { processNeracaKonven } from "./neracaKonven.js";
 
-// SHA-256 hex dari PIN yang valid. PIN disimpan sbg hash, bukan teks asli.
-// ismaya = tim Suriyah, "nisa alya" = tim BMP. App auto-detect bank dari ZIP.
+// SHA-256 hex dari PIN (lowercase) yang valid. PIN disimpan sbg hash, bukan teks asli.
+// ismaya = Suriyah, "nisa alya" = BMP, "devi oktaviani" = Artha Perwira. Case-insensitive.
 const PIN_HASHES = [
   "51e88e41cab453ae0c42874b2b9fa6fb152f5a1ae9355c8055a11062143f5bc6", // ismaya
   "c5ae4918bde0b3807702f60783f91af07e0122aed69e10af2c5abc3a6b213a5f", // nisa alya
+  "c87b6cbcdf3bf7cb284777a41c200a88be1364ce4864f4c35edee5c54349a87a", // devi oktaviani
 ];
 const XLSX = window.XLSX, JSZip = window.JSZip;
 const DASH_KEY = "lbbprs_dashboard_v1";
@@ -32,7 +33,7 @@ function unlock() { gate.style.display = "none"; appEl.style.display = "block"; 
 if (sessionStorage.getItem("lbbprs_ok") === "1") unlock();
 
 async function tryPin() {
-  const pin = document.getElementById("pin").value.trim();
+  const pin = document.getElementById("pin").value.trim().toLowerCase();
   const h = await sha256hex(pin);
   if (PIN_HASHES.includes(h)) {
     sessionStorage.setItem("lbbprs_ok", "1");
