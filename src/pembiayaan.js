@@ -4,10 +4,10 @@ import { TRANSLATE_MAP, translateSandi } from "./sandi.js";
 import { REF_PENGIKATAN_ROWS, REF_AGUNAN_ROWS } from "./enrichData.js";
 import * as E from "./enrich.js";
 import * as H from "./helpers.js";
+import { detectBank, discoverBranches } from "./bank.js";
 
-function findBranchAoa(files, formCode, branch, XLSX) {
+function findBranchAoa(files, formCode, code, XLSX) {
   const prefix = `LBBPRS-${formCode}-`;
-  const code = String(branch).padStart(3, "0");
   const name = Object.keys(files).find(n => {
     const b = n.split("/").pop();
     return b.startsWith(prefix) && (b.endsWith(`-${code}.xls`) || b.endsWith(`-${code}_part1.xls`));
@@ -21,11 +21,10 @@ function findBranchAoa(files, formCode, branch, XLSX) {
 
 function readFormData(files, formCode, colMap, posisi, XLSX) {
   const out = [];
-  for (let branch = 1; branch <= 6; branch++) {
-    const found = findBranchAoa(files, formCode, branch, XLSX);
+  for (const code of discoverBranches(files, `LBBPRS-${formCode}-`)) {  // dinamis
+    const found = findBranchAoa(files, formCode, code, XLSX);
     if (!found) continue;
     const { aoa } = found;
-    const code = String(branch).padStart(3, "0");
     const start = H.findDataStartRow(aoa);
     for (let r = start; r < aoa.length; r++) {
       const idVal = H.cell(aoa, r, 3);
@@ -204,9 +203,10 @@ export function processPembiayaan(files, period, XLSX) {
     jumlah_anomali: anomali,
   };
 
+  const tag = detectBank(files, XLSX).tag;
   const data = XLSX.write(wb, { type: "array", bookType: "xlsx" });
   return {
-    filename: `GABUNGAN_PEMBIAYAAN_BPRS_SURIYAH_${period.periodeLabel}.xlsx`,
+    filename: `GABUNGAN_PEMBIAYAAN_${tag}_${period.periodeLabel}.xlsx`,
     data, summary,
   };
 }

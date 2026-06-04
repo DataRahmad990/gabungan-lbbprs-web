@@ -1,6 +1,7 @@
 // Processor Neraca + Laba Rugi tren antar-bulan (port dari core/neraca.py).
 // Browser stateless: tren lama dikasih lewat priorTrendBytes (opsional).
 import * as H from "./helpers.js";
+import { detectBank } from "./bank.js";
 
 // recon: baris jumlah otomatis. Ijarah(180) + Piutang Sewa(160), karena Piutang Sewa
 // footnote 11) = bagian skema Ijarah, di neraca kepisah jadi 2 baris.
@@ -111,6 +112,7 @@ export function processNeraca(files, period, XLSX, priorTrendBytes = null) {
   }
   if (!any) throw new Error("Nggak nemu GB0200/GB0300 di ZIP.");
   summary.periode_ditambahkan = period.periodeLabel;
+  const tag = detectBank(files, XLSX).tag;
   const data = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  return { filename: "NERACA_TREN_BPRS_SURIYAH.xlsx", data, summary };
+  return { filename: `NERACA_TREN_${tag}.xlsx`, data, summary };
 }
