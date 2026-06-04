@@ -1,6 +1,7 @@
 // Processor Kredit BPR Konvensional (LBBPRK-0600). Port dari core/kredit.py.
 import * as S from "./sandiKonven.js";
 import { detectBank, discoverBranches } from "./bank.js";
+import { buildNameMap, lookupName } from "./pihakLawan.js";
 import * as H from "./helpers.js";
 
 const KREDIT_COLS = {
@@ -13,7 +14,7 @@ const KREDIT_COLS = {
   "CKPN": 59, "Status BMPK": 63, "Tgl Akad Awal": 67, "Tgl Akad Akhir": 68,
 };
 const OUTPUT_COLS = [
-  "Cabang", "Kol Label", "NPL Flag", "Kualitas", "ID Pihak Lawan", "No. Identitas", "No. Rekening",
+  "Cabang", "Kol Label", "NPL Flag", "Kualitas", "Nama", "ID Pihak Lawan", "No. Identitas", "No. Rekening",
   "Jenis", "Jenis Penggunaan", "Status Restrukturisasi", "Hubungan dengan Bank",
   "Plafon", "Baki Debet", "Tunggakan Pokok", "Tunggakan Bunga",
   "Hari Tunggakan Pokok", "Hari Tunggakan Bunga", "Tgl Mulai Macet",
@@ -26,7 +27,7 @@ const KOL = { 1: "1-Lancar", 2: "2-DPK", 3: "3-Kurang Lancar", 4: "4-Diragukan",
 function kolInt(v) { const n = parseInt(parseFloat(String(v).split(" - ")[0]), 10); return isNaN(n) ? 0 : n; }
 function money(r, k) { const v = parseFloat(r[k]); return isNaN(v) ? 0 : v; }
 
-function readBranch(aoa, cabang) {
+function readBranch(aoa, cabang, nameMap) {
   const out = [];
   for (let r = 17; r < aoa.length; r++) {
     const idv = String(H.cell(aoa, r, 5)).trim();
@@ -34,6 +35,7 @@ function readBranch(aoa, cabang) {
     if (!idv || idv.toUpperCase() === "JUMLAH" || !rek) continue;
     const row = { "Cabang": cabang, "File Sumber": `0600-${cabang}` };
     for (const [name, idx] of Object.entries(KREDIT_COLS)) row[name] = H.cell(aoa, r, idx);
+    row["Nama"] = lookupName(nameMap || {}, row["ID Pihak Lawan"]);
     for (const [name, mp] of Object.entries(S.TRANSLATE_MAP)) {
       if (name in row && row[name] !== null && row[name] !== "" && row[name] !== 0) row[name] = S.translate(row[name], mp);
     }
@@ -57,13 +59,14 @@ function sheet(XLSX, data) {
 
 export function processKredit(files, period, XLSX) {
   const wb = XLSX.utils.book_new();
+  const nameMap = buildNameMap(files, XLSX);
   let all = [];
   for (const code of discoverBranches(files, "LBBPRK-0600-")) {
     const name = Object.keys(files).find(n => { const b = n.split("/").pop(); return b.startsWith("LBBPRK-0600-") && (b.endsWith(`-${code}.xls`) || b.endsWith(`-${code}_part1.xls`)); });
     if (!name) continue;
     const wx = XLSX.read(files[name], { type: "array", cellDates: true });
     const aoa = XLSX.utils.sheet_to_json(wx.Sheets[wx.SheetNames[0]], { header: 1, raw: true, defval: null });
-    all = all.concat(readBranch(aoa, code));
+    all = all.concat(readBranch(aoa, code, nameMap));
   }
 
   const totalBd = all.reduce((s, r) => s + money(r, "Baki Debet"), 0);
@@ -90,11 +93,16 @@ export function processKredit(files, period, XLSX) {
   return {
     filename: `GABUNGAN_KREDIT_${tag}_${period.periodeLabel}.xlsx`,
     data,
-    summary: {
-      jumlah_rekening: all.length,
-      total_baki_debet: Math.round(totalBd * 100) / 100,
-      total_plafon: Math.round(all.reduce((s, r) => s + money(r, "Plafon"), 0) * 100) / 100,
-      jumlah_npl: all.filter(r => r._kol >= 3).length,
-    },
+    summary: (() => {
+      const sind = all.filter(r => String(r["Jenis"] || "").startsWith("01"));
+      return {
+        jumlah_rekening: all.length,
+        total_baki_debet: Math.round(totalBd * 100) / 100,
+        total_plafon: Math.round(all.reduce((s, r) => s + money(r, "Plafon"), 0) * 100) / 100,
+        jumlah_npl: all.filter(r => r._kol >= 3).length,
+        sindikasi_jml: sind.length,
+        sindikasi_baki_debet: Math.round(sind.reduce((s, r) => s + money(r, "Baki Debet"), 0) * 100) / 100,
+      };
+    })(),
   };
 }

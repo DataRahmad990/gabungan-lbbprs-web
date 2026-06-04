@@ -6,6 +6,7 @@ import { processNeraca } from "./neraca.js";
 import { processKredit } from "./kredit.js";
 import { processPenempatanKonven } from "./bankLainKonven.js";
 import { processNeracaKonven } from "./neracaKonven.js";
+import { makeFormProcessor } from "./formKonven.js";
 
 // SHA-256 hex dari PIN (lowercase) yang valid. PIN disimpan sbg hash, bukan teks asli.
 // ismaya = Suriyah, "nisa alya" = BMP, "devi oktaviani" = Artha Perwira. Case-insensitive.
@@ -107,6 +108,12 @@ goBtn.addEventListener("click", async () => {
     const runners = period.reportType === "konven" ? [
       ["Kredit", () => processKredit(files, period, XLSX)],
       ["Penempatan", () => processPenempatanKonven(files, period, XLSX)],
+      ["Agunan", () => makeFormProcessor("0601", "Daftar Agunan", "GABUNGAN_AGUNAN")(files, period, XLSX)],
+      ["Hapus Buku", () => makeFormProcessor("1500", "Aset Produktif Dihapus Buku", "GABUNGAN_HAPUS_BUKU")(files, period, XLSX)],
+      ["Liabilitas Lainnya", () => makeFormProcessor("1400", "Rincian Liabilitas Lainnya", "GABUNGAN_LIABILITAS_LAINNYA")(files, period, XLSX)],
+      ["Sindikasi", () => makeFormProcessor("0602", "Daftar Kredit Sindikasi", "GABUNGAN_SINDIKASI")(files, period, XLSX)],
+      ["Tabungan", () => makeFormProcessor("1100", "Daftar Tabungan", "GABUNGAN_TABUNGAN")(files, period, XLSX)],
+      ["Deposito", () => makeFormProcessor("1200", "Daftar Deposito", "GABUNGAN_DEPOSITO")(files, period, XLSX)],
       ["Neraca tren", () => processNeracaKonven(files, period, XLSX, priorTrend)],
     ] : [
       ["Pembiayaan", () => processPembiayaan(files, period, XLSX)],
@@ -120,10 +127,21 @@ goBtn.addEventListener("click", async () => {
     for (const [label, fn] of runners) {
       try {
         const res = fn();
+        if (!res) continue;  // form ga ada di ZIP -> skip
         download(res.filename, res.data);
         Object.assign(summary, Object.fromEntries(Object.entries(res.summary).map(([k, v]) => [`${label}: ${k}`, v])));
       } catch (err) {
         warnings.push(`${label} gagal: ${err.message}`);
+      }
+    }
+    // #7 Reconcile sindikasi: kredit (Jenis 01) vs form 0602
+    if (period.reportType === "konven") {
+      const krSind = summary["Kredit: sindikasi_baki_debet"];
+      const f0602 = summary["Sindikasi: total[Bagian Pendanaan Baki Debet]"];
+      if (krSind !== undefined && f0602 !== undefined) {
+        const selisih = Math.round((krSind - f0602) * 100) / 100;
+        const st = Math.abs(selisih) < 1 ? "COCOK" : `SELISIH ${selisih.toLocaleString("id-ID")}`;
+        warnings.push(`Rekon sindikasi: kredit Jenis-01 Rp ${krSind.toLocaleString("id-ID")} vs form 0602 Rp ${f0602.toLocaleString("id-ID")} -> ${st}`);
       }
     }
     document.getElementById("resWarn").innerHTML = warnings.map(w => `<div>${esc(w)}</div>`).join("");
