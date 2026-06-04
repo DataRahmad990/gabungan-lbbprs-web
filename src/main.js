@@ -5,10 +5,10 @@ import { processAbp, processPenempatan } from "./bankLain.js";
 import { processNeraca } from "./neraca.js";
 
 // SHA-256 hex dari PIN yang valid. PIN disimpan sbg hash, bukan teks asli.
-// ismaya = tim Suriyah, "anisa alya" = tim BMP. App auto-detect bank dari ZIP.
+// ismaya = tim Suriyah, "nisa alya" = tim BMP. App auto-detect bank dari ZIP.
 const PIN_HASHES = [
   "51e88e41cab453ae0c42874b2b9fa6fb152f5a1ae9355c8055a11062143f5bc6", // ismaya
-  "47500a871611fc89885b40d876b8d0a5045c74bc43c7dbf577040c918d474a5f", // anisa alya
+  "c5ae4918bde0b3807702f60783f91af07e0122aed69e10af2c5abc3a6b213a5f", // nisa alya
 ];
 const XLSX = window.XLSX, JSZip = window.JSZip;
 const DASH_KEY = "lbbprs_dashboard_v1";
