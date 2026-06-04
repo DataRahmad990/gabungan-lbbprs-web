@@ -4,8 +4,12 @@ import { processPembiayaan } from "./pembiayaan.js";
 import { processAbp, processPenempatan } from "./bankLain.js";
 import { processNeraca } from "./neraca.js";
 
-// SHA-256 hex dari PIN. Diisi saat build. (PIN disimpan sbg hash, bukan teks asli.)
-const PIN_HASH = "51e88e41cab453ae0c42874b2b9fa6fb152f5a1ae9355c8055a11062143f5bc6";
+// SHA-256 hex dari PIN yang valid. PIN disimpan sbg hash, bukan teks asli.
+// ismaya = tim Suriyah, "anisa alya" = tim BMP. App auto-detect bank dari ZIP.
+const PIN_HASHES = [
+  "51e88e41cab453ae0c42874b2b9fa6fb152f5a1ae9355c8055a11062143f5bc6", // ismaya
+  "47500a871611fc89885b40d876b8d0a5045c74bc43c7dbf577040c918d474a5f", // anisa alya
+];
 const XLSX = window.XLSX, JSZip = window.JSZip;
 const DASH_KEY = "lbbprs_dashboard_v1";
 
@@ -27,7 +31,7 @@ if (sessionStorage.getItem("lbbprs_ok") === "1") unlock();
 async function tryPin() {
   const pin = document.getElementById("pin").value.trim();
   const h = await sha256hex(pin);
-  if (h === PIN_HASH) {
+  if (PIN_HASHES.includes(h)) {
     sessionStorage.setItem("lbbprs_ok", "1");
     unlock();
   } else {
