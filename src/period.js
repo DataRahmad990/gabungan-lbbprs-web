@@ -15,11 +15,12 @@ export function detectPeriod(namaFile) {
   if (isNaN(tanggal) || tanggal.getUTCMonth() !== mo-1) {
     throw new Error(`Tanggal '${ymd}' di nama file '${base}' nggak valid.`);
   }
-  const jm = base.match(/^LBBPRS-LBBPRS\d+-([A-Z])-/);
+  const jm = base.match(/^LBBPR[SK]-LBBPR[SK]\d+-([A-Z])-/);
   const jenis = jm ? jm[1] : "?";
+  const reportType = base.startsWith("LBBPRK") ? "konven" : "syariah";
   return {
     tanggalPosisi: tanggal,
     periodeLabel: `${BULAN_ID[mo]}${y}`,
-    kodeBank, jenisLapor: jenis,
+    kodeBank, jenisLapor: jenis, reportType,
   };
 }

@@ -2,7 +2,8 @@
 const PREFIXES = [
   "PT Bank Perekonomian Rakyat Syariah",
   "PT Bank Pembiayaan Rakyat Syariah",
-  "PT BPRS", "BPRS", "PT BPR Syariah", "PT Bank",
+  "PT Bank Perekonomian Rakyat",
+  "PT BPRS", "BPRS", "PT BPR Syariah", "PT BPR", "PT Bank",
 ];
 
 function sanitizeTag(nama) {
@@ -16,7 +17,7 @@ function sanitizeTag(nama) {
 }
 
 export function detectBank(files, XLSX) {
-  for (const token of ["GB0200", "GB0300"]) {
+  for (const token of ["GB0200", "GB0300", "LBBPRK-0000", "LBBPRK-0100", "LBBPRK-0200"]) {
     const name = Object.keys(files).find(n => n.split("/").pop().includes(token) && n.endsWith(".xls"));
     if (!name) continue;
     try {

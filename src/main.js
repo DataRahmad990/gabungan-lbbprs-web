@@ -3,6 +3,9 @@ import { detectPeriod } from "./period.js";
 import { processPembiayaan } from "./pembiayaan.js";
 import { processAbp, processPenempatan } from "./bankLain.js";
 import { processNeraca } from "./neraca.js";
+import { processKredit } from "./kredit.js";
+import { processPenempatanKonven } from "./bankLainKonven.js";
+import { processNeracaKonven } from "./neracaKonven.js";
 
 // SHA-256 hex dari PIN yang valid. PIN disimpan sbg hash, bukan teks asli.
 // ismaya = tim Suriyah, "nisa alya" = tim BMP. App auto-detect bank dari ZIP.
@@ -100,7 +103,11 @@ goBtn.addEventListener("click", async () => {
 
     const warnings = [];
     const summary = {};
-    const runners = [
+    const runners = period.reportType === "konven" ? [
+      ["Kredit", () => processKredit(files, period, XLSX)],
+      ["Penempatan", () => processPenempatanKonven(files, period, XLSX)],
+      ["Neraca tren", () => processNeracaKonven(files, period, XLSX, priorTrend)],
+    ] : [
       ["Pembiayaan", () => processPembiayaan(files, period, XLSX)],
       ["ABP", () => processAbp(files, period, XLSX)],
       ["Penempatan", () => processPenempatan(files, period, XLSX)],
