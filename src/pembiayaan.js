@@ -19,6 +19,14 @@ function findBranchAoa(files, formCode, code, XLSX) {
   return { aoa, name };
 }
 
+// Kolom yang nilainya per-agunan (beda di tiap baris agunan), dipakai untuk menangkap
+// agunan ke-2 dst. yang ada di baris lanjutan (nama kosong, rekening sama).
+const AGUNAN_FIELDS = [
+  "Jenis Agunan", "Jenis Pengikatan", "Kode/No Agunan", "Karat", "Berat",
+  "Latitude", "Longitude", "Golongan Penjamin", "Tgl Penilaian Terakhir",
+  "Nilai Agunan", "Nilai Dapat Diperhitungkan", "Bagian Dijamin",
+];
+
 function readFormData(files, formCode, colMap, posisi, XLSX) {
   const out = [];
   for (const code of discoverBranches(files, `LBBPRS-${formCode}-`)) {  // dinamis
@@ -26,12 +34,43 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
     if (!found) continue;
     const { aoa } = found;
     const start = H.findDataStartRow(aoa);
+    const rekIdx = colMap["Nomor Rekening"];
+    const agIdx = colMap["Jenis Agunan"];
+    const kdIdx = colMap["Kode/No Agunan"];
+    let current = null;     // baris pembiayaan utama terakhir (basis clone agunan lanjutan)
+    let currentRek = "";
+
     for (let r = start; r < aoa.length; r++) {
-      const idVal = H.cell(aoa, r, 3);
-      const idStr = String(idVal).trim();
-      if (!idStr || idStr.toUpperCase() === "JUMLAH") continue;
+      const idStr = String(H.cell(aoa, r, 3)).trim();
+      if (idStr.toUpperCase() === "JUMLAH") { current = null; continue; }
       const nama = String(H.cell(aoa, r, 4)).trim();
-      if (!nama) continue;
+      const rek = rekIdx != null ? String(H.cell(aoa, r, rekIdx)).trim() : "";
+      const hasAgunan =
+        (agIdx != null && String(H.cell(aoa, r, agIdx)).trim() !== "") ||
+        (kdIdx != null && String(H.cell(aoa, r, kdIdx)).trim() !== "");
+
+      // Baris lanjutan agunan: nama kosong, rekening sama dgn pembiayaan terakhir, ada
+      // data agunan. Satu baris per agunan; identitas pembiayaan diwarisi dari baris utama,
+      // ditandai _isAgunanLanjutan supaya tidak dobel saat hitung total.
+      if (!nama && current && hasAgunan && rek && rek === currentRek) {
+        const arow = { ...current, "Baris Asli": `Baris ${r + 1}`, _isAgunanLanjutan: true };
+        for (const name of AGUNAN_FIELDS) {
+          const idx = colMap[name];
+          if (idx == null) continue;
+          let v = H.cell(aoa, r, idx);
+          const dict = TRANSLATE_MAP[name];
+          if (dict && v !== null && v !== "" && v !== 0 && v !== 0.0) v = translateSandi(v, dict);
+          arow[name] = v;
+        }
+        const peng2 = arow["Jenis Pengikatan"] || "";
+        arow["HT Flag"] = E.htFlag(peng2);
+        arow["Keterangan Pengikatan"] = E.keteranganPengikatan(peng2);
+        out.push(arow);
+        continue;
+      }
+
+      // Baris pembiayaan utama: butuh ID + Nama.
+      if (!idStr || !nama) continue;
 
       const row = { "Cabang": code, "File Sumber": `${formCode}-${code}`, "Baris Asli": `Baris ${r+1}` };
       for (const [colName, colIdx] of Object.entries(colMap)) {
@@ -86,6 +125,8 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
       row["Keterangan Pengikatan"] = E.keteranganPengikatan(peng);
 
       out.push(row);
+      current = row;
+      currentRek = rek;
     }
   }
   return out;
@@ -179,9 +220,14 @@ export function processPembiayaan(files, period, XLSX) {
     return -(a["Hari Overdue"] || 0) - (-(b["Hari Overdue"] || 0));
   });
 
+  // Total dihitung per pembiayaan (rekening unik); baris agunan lanjutan TIDAK dihitung
+  // ulang supaya nominal & jumlah rekening tidak dobel.
+  const financingRows = allCombined.filter(r => !r._isAgunanLanjutan);
+
   // RINGKASAN (sederhana)
-  const ringkasan = [["RINGKASAN PEMBIAYAAN - BPRS SURIYAH", period.periodeLabel],
-    ["Total rekening", allCombined.length]];
+  const ringkasan = [["RINGKASAN PEMBIAYAAN", period.periodeLabel],
+    ["Total rekening (pembiayaan)", financingRows.length],
+    ["Total baris (termasuk agunan tambahan)", allCombined.length]];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasan), "RINGKASAN");
 
   // SEMUA AKAD
@@ -194,15 +240,15 @@ export function processPembiayaan(files, period, XLSX) {
   XLSX.utils.book_append_sheet(wb, refSheet(XLSX, REF_PENGIKATAN_ROWS), "REF PENGIKATAN");
   XLSX.utils.book_append_sheet(wb, refSheet(XLSX, REF_AGUNAN_ROWS), "REF AGUNAN");
 
-  // Summary
+  // Summary (per pembiayaan, bukan per baris agunan)
   let totalBaki = 0, npf = 0, anomali = 0;
-  for (const row of allCombined) {
+  for (const row of financingRows) {
     totalBaki += parseFloat(row["Baki Debet"]) || 0;
     if (row["NPF Flag"] === "YA") npf++;
     if (row["Flag Anomali"]) anomali++;
   }
   const summary = {
-    jumlah_rekening: allCombined.length,
+    jumlah_rekening: financingRows.length,
     total_baki_debet: Math.round(totalBaki * 100) / 100,
     jumlah_npf: npf,
     jumlah_anomali: anomali,

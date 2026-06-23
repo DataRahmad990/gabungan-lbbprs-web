@@ -1,4 +1,5 @@
 // Sandi SEOJK 17/SEOJK.03/2024 - auto-generated dari core/sandi.py (jangan edit manual)
+import { SANDI_SEKTOR } from "./sektorData.js";
 
 export const SANDI_AGUNAN = {"020": "Tabungan", "041": "Deposito", "045": "Uang Kertas Asing", "046": "Setoran Jaminan", "051": "Logam Mulia", "052": "Emas Perhiasan", "081": "Sertifikat Reksadana", "082": "Obligasi Negara", "083": "Obligasi Korporasi", "086": "SBSN", "087": "Sukuk Korporasi", "088": "SB Syariah BI", "089": "SB Lainnya", "092": "Resi Gudang", "161": "Gedung/Ruang Kantor", "162": "Gudang", "163": "Ruko/Rukan", "176": "Rumah Tapak", "177": "Rumah Susun", "187": "Tanah", "189": "Kendaraan Bermotor", "190": "Alat Berat/Mesin", "192": "Kapal/Perahu", "193": "Persediaan", "194": "Tempat Usaha Lain", "195": "Agunan Dinilai Penilai Independen", "199": "Agunan Lainnya", "210": "Jaminan-Garansi", "220": "Jaminan-Asuransi Jiwa", "230": "Jaminan-Asuransi Pembiayaan", "290": "Jaminan-Lainnya"};
 export const SANDI_BMPD = {"00": "Tidak Melanggar", "11": "Melanggar Individu", "12": "Melanggar Kelompok", "13": "Melanggar Ind+Kel", "21": "Melampaui Individu", "22": "Melampaui Kelompok", "23": "Melampaui Ind+Kel"};
@@ -45,6 +46,7 @@ export const TRANSLATE_MAP = {
   "Sifat Investasi": SANDI_SIFAT_INVESTASI,
   "Metode Bagi Hasil": SANDI_METODE_BH,
   "Jenis Aset": SANDI_JENIS_ASET_IJR,
+  "Sektor Ekonomi": SANDI_SEKTOR,
 };
 
 export function translateSandi(val, dict) {
