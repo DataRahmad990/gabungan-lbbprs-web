@@ -63,6 +63,11 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
       const od = H.calcOverdueDays(jtDate, posisi);
       row["Hari Overdue"] = od > 0 ? od : 0;
 
+      // Jangka waktu pembiayaan: Tanggal Mulai -> Tanggal Jatuh Tempo
+      const jw = H.jangkaWaktu(row["Tanggal Mulai"], row["Tanggal Jatuh Tempo"]);
+      row["Jangka Waktu (Bulan)"] = jw.bulan;
+      row["Jangka Waktu"] = jw.teks;
+
       // Kol
       let kolRaw = row["Kualitas"];
       let kolVal = (typeof kolRaw === "string" && kolRaw.includes(" - ")) ? kolRaw.split(" - ")[0] : kolRaw;

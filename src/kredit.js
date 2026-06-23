@@ -19,7 +19,8 @@ const OUTPUT_COLS = [
   "Plafon", "Baki Debet", "Tunggakan Pokok", "Tunggakan Bunga",
   "Hari Tunggakan Pokok", "Hari Tunggakan Bunga", "Tgl Mulai Macet",
   "CKPN", "Suku Bunga (%)", "Cara Perhitungan Bunga", "Sektor Ekonomi", "Kategori Usaha",
-  "Lokasi Penggunaan", "Sumber Dana Pelunasan", "Status BMPK", "Tgl Akad Awal", "Tgl Akad Akhir", "File Sumber",
+  "Lokasi Penggunaan", "Sumber Dana Pelunasan", "Status BMPK", "Tgl Akad Awal", "Tgl Akad Akhir",
+  "Jangka Waktu (Bulan)", "Jangka Waktu", "File Sumber",
 ];
 const MONEY = new Set(["Plafon", "Baki Debet", "Tunggakan Pokok", "Tunggakan Bunga", "CKPN"]);
 const KOL = { 1: "1-Lancar", 2: "2-DPK", 3: "3-Kurang Lancar", 4: "4-Diragukan", 5: "5-Macet" };
@@ -43,6 +44,10 @@ function readBranch(aoa, cabang, nameMap) {
     row._kol = kol;
     row["Kol Label"] = KOL[kol] || String(row["Kualitas"]);
     row["NPL Flag"] = kol >= 3 ? "YA" : "TIDAK";
+    // Jangka waktu kredit: Tgl Akad Awal -> Tgl Akad Akhir
+    const jw = H.jangkaWaktu(row["Tgl Akad Awal"], row["Tgl Akad Akhir"]);
+    row["Jangka Waktu (Bulan)"] = jw.bulan;
+    row["Jangka Waktu"] = jw.teks;
     out.push(row);
   }
   return out;

@@ -19,6 +19,18 @@ export function parseDate(val) {
   return null;
 }
 
+// Jangka waktu pinjaman antara dua tanggal (mulai -> jatuh tempo / akad awal -> akhir).
+// Hitung selisih bulan kalender (completed months); kembalikan {bulan, teks "X tahun Y bulan"}.
+// bulan=null & teks="" kalau salah satu tanggal tak terbaca atau akhir < mulai.
+export function jangkaWaktu(startVal, endVal) {
+  const s = parseDate(startVal), e = parseDate(endVal);
+  if (!s || !e || e.getTime() < s.getTime()) return { bulan: null, teks: "" };
+  let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  if (e.getDate() < s.getDate()) m -= 1;
+  if (m < 0) m = 0;
+  return { bulan: m, teks: `${Math.floor(m / 12)} tahun ${m % 12} bulan` };
+}
+
 export function calcOverdueDays(jtDate, posisi) {
   if (jtDate && jtDate.getTime() < posisi.getTime()) {
     return Math.round((posisi.getTime() - jtDate.getTime()) / 86400000);
