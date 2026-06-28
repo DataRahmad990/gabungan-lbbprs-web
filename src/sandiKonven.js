@@ -19,6 +19,7 @@ export const TRANSLATE_MAP = {
   "Hubungan dengan Bank": HUBUNGAN_BANK_LABEL, "Sumber Dana Pelunasan": SUMBER_DANA_LABEL,
   "Kategori Usaha": KATEGORI_USAHA_LABEL, "Cara Perhitungan Bunga": CARA_BUNGA_LABEL,
   "Sifat Kredit": SIFAT_KREDIT_LABEL, "Sektor Ekonomi": SEKTOR_LABEL, "Lokasi Penggunaan": LOKASI_LABEL,
+  "Periode Pembayaran": PERIODE_BAYAR_LABEL,
 };
 export function translate(val, mp) {
   if (val === null || val === undefined || val === "") return val;

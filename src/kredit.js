@@ -7,7 +7,7 @@ import * as H from "./helpers.js";
 const KREDIT_COLS = {
   "ID Pihak Lawan": 5, "No. Identitas": 6, "No. Rekening": 16, "Jenis": 17,
   "Status Restrukturisasi": 18, "Jenis Penggunaan": 19, "Hubungan dengan Bank": 20,
-  "Sumber Dana Pelunasan": 23, "Kualitas": 33, "Tgl Mulai Macet": 34,
+  "Sumber Dana Pelunasan": 23, "Periode Pembayaran": 24, "Kualitas": 33, "Tgl Mulai Macet": 34,
   "Hari Tunggakan Pokok": 35, "Hari Tunggakan Bunga": 36, "Tunggakan Pokok": 37,
   "Tunggakan Bunga": 38, "Sektor Ekonomi": 41, "Kategori Usaha": 42, "Lokasi Penggunaan": 43,
   "Suku Bunga (%)": 44, "Cara Perhitungan Bunga": 45, "Plafon": 51, "Baki Debet": 53,
@@ -18,7 +18,7 @@ const OUTPUT_COLS = [
   "Jenis", "Jenis Penggunaan", "Status Restrukturisasi", "Hubungan dengan Bank",
   "Plafon", "Baki Debet", "Tunggakan Pokok", "Tunggakan Bunga",
   "Hari Tunggakan Pokok", "Hari Tunggakan Bunga", "Tgl Mulai Macet",
-  "CKPN", "Suku Bunga (%)", "Cara Perhitungan Bunga", "Sektor Ekonomi", "Kategori Usaha",
+  "CKPN", "Suku Bunga (%)", "Cara Perhitungan Bunga", "Periode Pembayaran", "Sektor Ekonomi", "Kategori Usaha",
   "Lokasi Penggunaan", "Sumber Dana Pelunasan", "Status BMPK", "Tgl Akad Awal", "Tgl Akad Akhir",
   "Jangka Waktu (Bulan)", "Jangka Waktu", "File Sumber",
 ];
