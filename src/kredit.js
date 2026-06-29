@@ -7,7 +7,7 @@ import * as H from "./helpers.js";
 const KREDIT_COLS = {
   "ID Pihak Lawan": 5, "No. Identitas": 6, "No. Rekening": 16, "Jenis": 17,
   "Status Restrukturisasi": 18, "Jenis Penggunaan": 19, "Hubungan dengan Bank": 20,
-  "Sumber Dana Pelunasan": 23, "Periode Pembayaran": 24, "Kualitas": 33, "Tgl Mulai Macet": 34,
+  "Sumber Dana Pelunasan": 23, "Periode Pembayaran": 24, "Tanggal Mulai": 29, "Tanggal Jatuh Tempo": 31, "Kualitas": 33, "Tgl Mulai Macet": 34,
   "Hari Tunggakan Pokok": 35, "Hari Tunggakan Bunga": 36, "Tunggakan Pokok": 37,
   "Tunggakan Bunga": 38, "Sektor Ekonomi": 41, "Kategori Usaha": 42, "Lokasi Penggunaan": 43,
   "Suku Bunga (%)": 44, "Cara Perhitungan Bunga": 45, "Plafon": 51, "Baki Debet": 53,
@@ -20,7 +20,7 @@ const OUTPUT_COLS = [
   "Hari Tunggakan Pokok", "Hari Tunggakan Bunga", "Tgl Mulai Macet",
   "CKPN", "Suku Bunga (%)", "Cara Perhitungan Bunga", "Periode Pembayaran", "Sektor Ekonomi", "Kategori Usaha",
   "Lokasi Penggunaan", "Sumber Dana Pelunasan", "Status BMPK", "Tgl Akad Awal", "Tgl Akad Akhir",
-  "Jangka Waktu (Bulan)", "Jangka Waktu", "File Sumber",
+  "Tanggal Mulai", "Tanggal Jatuh Tempo", "Jangka Waktu (Bulan)", "Jangka Waktu", "File Sumber",
 ];
 const MONEY = new Set(["Plafon", "Baki Debet", "Tunggakan Pokok", "Tunggakan Bunga", "CKPN"]);
 const KOL = { 1: "1-Lancar", 2: "2-DPK", 3: "3-Kurang Lancar", 4: "4-Diragukan", 5: "5-Macet" };
@@ -44,8 +44,9 @@ function readBranch(aoa, cabang, nameMap) {
     row._kol = kol;
     row["Kol Label"] = KOL[kol] || String(row["Kualitas"]);
     row["NPL Flag"] = kol >= 3 ? "YA" : "TIDAK";
-    // Jangka waktu kredit: Tgl Akad Awal -> Tgl Akad Akhir
-    const jw = H.jangkaWaktu(row["Tgl Akad Awal"], row["Tgl Akad Akhir"]);
+    // Jangka waktu kredit: Tanggal Mulai -> Tanggal Jatuh Tempo (tenor; bukan Akad Awal/Akhir
+    // yang utk kredit non-restruktur sering sama -> 0)
+    const jw = H.jangkaWaktu(row["Tanggal Mulai"], row["Tanggal Jatuh Tempo"]);
     row["Jangka Waktu (Bulan)"] = jw.bulan;
     row["Jangka Waktu"] = jw.teks;
     out.push(row);
