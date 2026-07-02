@@ -36,7 +36,7 @@ function readBranch(aoa, cabang, nameMap) {
     if (!idv || idv.toUpperCase() === "JUMLAH" || !rek) continue;
     const row = { "Cabang": cabang, "File Sumber": `0600-${cabang}` };
     for (const [name, idx] of Object.entries(KREDIT_COLS)) row[name] = H.cell(aoa, r, idx);
-    row["Nama"] = lookupName(nameMap || {}, row["ID Pihak Lawan"]);
+    row["Nama"] = lookupName(nameMap || {}, row["ID Pihak Lawan"], row["No. Identitas"]);
     for (const [name, mp] of Object.entries(S.TRANSLATE_MAP)) {
       if (name in row && row[name] !== null && row[name] !== "" && row[name] !== 0) row[name] = S.translate(row[name], mp);
     }

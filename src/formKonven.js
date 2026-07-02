@@ -2,7 +2,7 @@
 // Label kolom dari merged-cell header (ws['!merges']). Nama via 0016.
 import * as S from "./sandiKonven.js";
 import { detectBank, discoverBranches } from "./bank.js";
-import { buildNameMap, lookupName } from "./pihakLawan.js";
+import { buildNameMap, lookupName, nameCount } from "./pihakLawan.js";
 import * as H from "./helpers.js";
 
 function readSheet(bytes, XLSX) {
@@ -103,7 +103,8 @@ export function makeFormProcessor(formCode, title, namePrefix) {
       colLabel[c] = lab;
     }
     const idCol = kept.find(c => labelsByCol[c].includes("ID Pihak Lawan"));
-    const hasName = !!(Object.keys(nameMap).length && idCol !== undefined);
+    const nikCol = kept.find(c => { const l = labelsByCol[c] || ""; return l.includes("No. Identitas") || l.includes("Nomor Identitas"); });
+    const hasName = !!(nameCount(nameMap) && idCol !== undefined);
     const colsOrder = ["Cabang", ...kept.map(c => colLabel[c]), ...(hasName ? ["Nama"] : [])];
 
     function toRow(code, cells) {
@@ -114,7 +115,7 @@ export function makeFormProcessor(formCode, title, namePrefix) {
         if (S.TRANSLATE_MAP[base] && v !== null && v !== "" && v !== 0) v = S.translate(v, S.TRANSLATE_MAP[base]);
         row[colLabel[c]] = v;
       }
-      if (hasName) row["Nama"] = lookupName(nameMap, cells[idCol]);
+      if (hasName) row["Nama"] = lookupName(nameMap, cells[idCol], nikCol !== undefined ? cells[nikCol] : undefined);
       return row;
     }
     const perBranch = {};
@@ -123,9 +124,17 @@ export function makeFormProcessor(formCode, title, namePrefix) {
 
     const wb = XLSX.utils.book_new();
     const tag = detectBank(files, XLSX).tag;
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[`${title} (LBBPRK-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]]), "RINGKASAN");
+    // Form sangat besar (mis. Tabungan puluhan ribu baris): menulis sheet per-cabang
+    // yang menduplikasi "SEMUA CABANG" membuat xlsx-js-style gagal ("Invalid array
+    // length"). Lewati sheet per-cabang bila data besar; seluruh data tetap ada di
+    // "SEMUA CABANG" (dapat difilter lewat kolom "Cabang").
+    const PER_BRANCH_MAX = 40000;
+    const skipBranch = all.length > PER_BRANCH_MAX;
+    const ringkasan = [[`${title} (LBBPRK-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]];
+    if (skipBranch) ringkasan.push([], ["Catatan", `Data > ${PER_BRANCH_MAX.toLocaleString("id-ID")} baris: sheet per-cabang dilewati. Gunakan filter kolom "Cabang" di sheet SEMUA CABANG.`]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasan), "RINGKASAN");
     XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, all), "SEMUA CABANG");
-    for (const code of Object.keys(perBranch).sort()) XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, perBranch[code]), `Cabang ${code}`);
+    if (!skipBranch) for (const code of Object.keys(perBranch).sort()) XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, perBranch[code]), `Cabang ${code}`);
 
     const summary = { jumlah_baris: all.length };
     for (const col of colsOrder) {
