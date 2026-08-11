@@ -28,6 +28,43 @@ function findDataStart(aoa) {
 }
 
 function txt(v) { return String(v == null ? "" : v).trim(); }
+
+// Deteksi robust (dipakai syariah): baris header = baris dengan paling banyak
+// SEL LABEL TEKS (mengandung huruf, bukan angka murni) di kolom 3..N; data mulai
+// setelah blok header. Menangani kasus kolom-4 bukan nomor urut 1-3 digit
+// (mis. Tabungan/Hapus Buku di mana kolom-4 = Golongan Nasabah 4 digit).
+function wordCells(aoa, r, ncols) {
+  let n = 0;
+  for (let c = 3; c < ncols; c++) {
+    const v = txt(H.cell(aoa, r, c));
+    if (v && /[A-Za-z]/.test(v)) n++;
+  }
+  return n;
+}
+// Baris DATA = sel bernilai (angka/tanggal/kode tanpa huruf) lebih banyak dari
+// sel label (mengandung huruf). Baris header/sub-header didominasi label teks.
+function isDataRow(aoa, r, ncols) {
+  let words = 0, vals = 0;
+  for (let c = 3; c < ncols; c++) {
+    const v = txt(H.cell(aoa, r, c));
+    if (!v) continue;
+    if (/[A-Za-z]/.test(v)) words++;
+    else vals++;
+  }
+  return vals > words;
+}
+function findDataStartRobust(aoa, ncols) {
+  const lim = Math.min(45, aoa.length);
+  let hr = -1, best = 1;
+  for (let r = 6; r < lim; r++) {
+    const w = wordCells(aoa, r, ncols);
+    if (w > best) { best = w; hr = r; }
+  }
+  if (hr < 0) return findDataStart(aoa);
+  const end = Math.min(hr + 15, aoa.length);
+  for (let r = hr + 1; r < end; r++) if (isDataRow(aoa, r, ncols)) return r;
+  return aoa.length; // tidak ada baris data (form kosong) -> jangan salah ambil sub-header
+}
 function isNumLabel(s) { return s !== "" && /^[\d.]+$/.test(s); }
 
 function headerLabels(aoa, merges, ncols, ds) {
@@ -65,9 +102,15 @@ function sheet(XLSX, cols, data) {
   return ws;
 }
 
-export function makeFormProcessor(formCode, title, namePrefix) {
+// cfg (opsional) untuk mendukung report type lain (mis. syariah LBBPRS):
+//   { reportPrefix: "LBBPRS", translateMap: <sandi 17>, translate: <fn> }
+// Default = konven (LBBPRK, SEOJK 16) supaya pemanggilan lama tetap jalan.
+export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
   return function (files, period, XLSX) {
-    const prefix = `LBBPRK-${formCode}-`;
+    const reportPrefix = cfg.reportPrefix || "LBBPRK";
+    const TMAP = cfg.translateMap || S.TRANSLATE_MAP;
+    const TR = cfg.translate || S.translate;
+    const prefix = `${reportPrefix}-${formCode}-`;
     const branches = discoverBranches(files, prefix);
     if (!branches.length) return null;  // form ga ada -> skip
 
@@ -79,7 +122,7 @@ export function makeFormProcessor(formCode, title, namePrefix) {
       const name = Object.keys(files).find(n => { const b = n.split("/").pop(); return b.startsWith(prefix) && (b.endsWith(`-${code}.xls`) || b.endsWith(`-${code}_part1.xls`)); });
       if (!name) continue;
       const { aoa, merges, ncols } = readSheet(files[name], XLSX);
-      const ds = findDataStart(aoa);
+      const ds = cfg.robustDataStart ? findDataStartRobust(aoa, ncols) : findDataStart(aoa);
       const labels = headerLabels(aoa, merges, ncols, ds);
       const used = Object.keys(labels).map(Number).sort((a, b) => a - b);
       for (const c of used) if (!(c in labelsByCol)) labelsByCol[c] = labels[c];
@@ -112,7 +155,7 @@ export function makeFormProcessor(formCode, title, namePrefix) {
       for (const c of kept) {
         let v = cells[c] === undefined ? "" : cells[c];
         const base = labelsByCol[c];
-        if (S.TRANSLATE_MAP[base] && v !== null && v !== "" && v !== 0) v = S.translate(v, S.TRANSLATE_MAP[base]);
+        if (TMAP[base] && v !== null && v !== "" && v !== 0) v = TR(v, TMAP[base]);
         row[colLabel[c]] = v;
       }
       if (hasName) row["Nama"] = lookupName(nameMap, cells[idCol], nikCol !== undefined ? cells[nikCol] : undefined);
@@ -130,7 +173,7 @@ export function makeFormProcessor(formCode, title, namePrefix) {
     // "SEMUA CABANG" (dapat difilter lewat kolom "Cabang").
     const PER_BRANCH_MAX = 40000;
     const skipBranch = all.length > PER_BRANCH_MAX;
-    const ringkasan = [[`${title} (LBBPRK-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]];
+    const ringkasan = [[`${title} (${reportPrefix}-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]];
     if (skipBranch) ringkasan.push([], ["Catatan", `Data > ${PER_BRANCH_MAX.toLocaleString("id-ID")} baris: sheet per-cabang dilewati. Gunakan filter kolom "Cabang" di sheet SEMUA CABANG.`]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasan), "RINGKASAN");
     XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, all), "SEMUA CABANG");

@@ -7,6 +7,24 @@ import { processKredit } from "./kredit.js";
 import { processPenempatanKonven } from "./bankLainKonven.js";
 import { processNeracaKonven } from "./neracaKonven.js";
 import { makeFormProcessor } from "./formKonven.js";
+import * as SY from "./sandi.js";
+
+// Config combiner generik untuk syariah (LBBPRS, SEOJK 17). robustDataStart
+// menangani form dengan header 2 baris / kolom-4 bukan nomor urut.
+const SYR = { reportPrefix: "LBBPRS", translateMap: SY.TRANSLATE_MAP, translate: SY.translateSandi, robustDataStart: true };
+// Form daftar per-cabang syariah yang digabung (di luar Pembiayaan/ABP/Penempatan/Neraca).
+const SYR_FORMS = [
+  ["Persediaan", "KC1500", "Daftar Persediaan", "GABUNGAN_PERSEDIAAN"],
+  ["Agunan Diambil Alih", "KC1600", "Daftar Agunan Yang Diambil Alih", "GABUNGAN_AGUNAN_DIAMBIL_ALIH"],
+  ["Aset Tetap & Inventaris", "KC1700", "Daftar Aset Tetap dan Inventaris", "GABUNGAN_ASET_TETAP"],
+  ["Aset Tidak Berwujud", "KC1800", "Daftar Aset Tidak Berwujud", "GABUNGAN_ASET_TIDAK_BERWUJUD"],
+  ["Tabungan Wadiah", "KC2200", "Daftar Tabungan Wadiah", "GABUNGAN_TABUNGAN_WADIAH"],
+  ["Simpanan Mudarabah", "KC2300", "Daftar Simpanan Mudarabah", "GABUNGAN_SIMPANAN_MUDARABAH"],
+  ["Hapus Buku", "KC2900", "Daftar Aset Produktif Dihapus Buku", "GABUNGAN_HAPUS_BUKU"],
+  ["Aset Keuangan Lainnya", "KC4000", "Daftar Aset Keuangan Lainnya", "GABUNGAN_ASET_KEUANGAN_LAINNYA"],
+  ["Perbedaan Kualitas Aset", "KC4100", "Daftar Perbedaan Kualitas Aset Produktif", "GABUNGAN_PERBEDAAN_KUALITAS_ASET"],
+  ["Sindikasi", "KC4200", "Daftar Pembiayaan Sindikasi", "GABUNGAN_SINDIKASI"],
+];
 
 // SHA-256 hex dari PIN (lowercase) yang valid. PIN disimpan sbg hash, bukan teks asli.
 // ismaya = Suriyah, "nisa alya" = BMP, "devi oktaviani" = Artha Perwira. Case-insensitive.
@@ -119,6 +137,7 @@ goBtn.addEventListener("click", async () => {
       ["Pembiayaan", () => processPembiayaan(files, period, XLSX)],
       ["ABP", () => processAbp(files, period, XLSX)],
       ["Penempatan", () => processPenempatan(files, period, XLSX)],
+      ...SYR_FORMS.map(([label, code, title, prefix]) => [label, () => makeFormProcessor(code, title, prefix, SYR)(files, period, XLSX)]),
       ["Neraca tren", () => processNeraca(files, period, XLSX, priorTrend)],
     ];
     document.getElementById("resPeriode").textContent = `${period.periodeLabel} (${period.jenisLapor})`;
