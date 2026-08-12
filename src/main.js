@@ -137,7 +137,11 @@ goBtn.addEventListener("click", async () => {
       ["Pembiayaan", () => processPembiayaan(files, period, XLSX)],
       ["ABP", () => processAbp(files, period, XLSX)],
       ["Penempatan", () => processPenempatan(files, period, XLSX)],
-      ...SYR_FORMS.map(([label, code, title, prefix]) => [label, () => makeFormProcessor(code, title, prefix, SYR)(files, period, XLSX)]),
+      ...SYR_FORMS.map(([label, code, title, prefix]) => {
+        // Sindikasi: forward-fill Nomor Rekening (1 rekening banyak baris peserta).
+        const cfg = code === "KC4200" ? { ...SYR, fillDown: ["Nomor Rekening"] } : SYR;
+        return [label, () => makeFormProcessor(code, title, prefix, cfg)(files, period, XLSX)];
+      }),
       ["Neraca tren", () => processNeraca(files, period, XLSX, priorTrend)],
     ];
     document.getElementById("resPeriode").textContent = `${period.periodeLabel} (${period.jenisLapor})`;

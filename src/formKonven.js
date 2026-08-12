@@ -138,6 +138,25 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
       rawBranch[code] = rows;
     }
 
+    // Forward-fill kolom kunci yang hanya terisi di baris pertama grup (mis. Nomor
+    // Rekening di Sindikasi: 1 rekening banyak baris peserta, rek cuma di baris awal).
+    // Baris lanjutan (blank) mewarisi nilai dari baris sebelumnya dalam cabang yang sama.
+    if (cfg.fillDown && cfg.fillDown.length) {
+      const fillCols = Object.keys(labelsByCol).map(Number)
+        .filter(c => cfg.fillDown.some(s => (labelsByCol[c] || "").includes(s)));
+      for (const code of Object.keys(rawBranch)) {
+        const last = {};
+        for (const cells of rawBranch[code]) {
+          for (const c of fillCols) {
+            const v = cells[c];
+            if (v === undefined || v === null || String(v).trim() === "") {
+              if (last[c] !== undefined) { cells[c] = last[c]; nonempty.add(c); }
+            } else last[c] = v;
+          }
+        }
+      }
+    }
+
     const kept = Object.keys(labelsByCol).map(Number).sort((a, b) => a - b).filter(c => nonempty.has(c));
     const seen = {}, colLabel = {};
     for (const c of kept) {
