@@ -24,6 +24,27 @@ const SYR_FORMS = [
   ["Aset Keuangan Lainnya", "KC4000", "Daftar Aset Keuangan Lainnya", "GABUNGAN_ASET_KEUANGAN_LAINNYA"],
   ["Perbedaan Kualitas Aset", "KC4100", "Daftar Perbedaan Kualitas Aset Produktif", "GABUNGAN_PERBEDAAN_KUALITAS_ASET"],
   ["Sindikasi", "KC4200", "Daftar Pembiayaan Sindikasi", "GABUNGAN_SINDIKASI"],
+  // --- Form daftar/rincian tambahan (2026-08-26): parity dengan app.py ---
+  ["CKPN", "KC1200", "Daftar Cadangan Kerugian Penurunan Nilai", "GABUNGAN_CKPN"],
+  ["Salam", "KC1300", "Daftar Salam", "GABUNGAN_SALAM"],
+  ["Aset Istishna", "KC1400", "Daftar Aset Istishna Dalam Penyelesaian", "GABUNGAN_ASET_ISTISHNA"],
+  ["Aset Antarkantor", "KC1900", "Daftar Aset Antarkantor", "GABUNGAN_ASET_ANTARKANTOR"],
+  ["Rincian Aset Lainnya", "KC2000", "Rincian Aset Lainnya", "GABUNGAN_RINCIAN_ASET_LAINNYA"],
+  ["Liabilitas Segera", "KC2100", "Rincian Liabilitas Segera", "GABUNGAN_LIABILITAS_SEGERA"],
+  ["Pembiayaan Diterima", "KC2500", "Daftar Pembiayaan Diterima", "GABUNGAN_PEMBIAYAAN_DITERIMA"],
+  ["Liabilitas Antarkantor", "KC2600", "Daftar Liabilitas Antarkantor", "GABUNGAN_LIABILITAS_ANTARKANTOR"],
+  ["Rincian Liabilitas Lainnya", "KC2700", "Rincian Liabilitas Lainnya", "GABUNGAN_RINCIAN_LIABILITAS_LAINNYA"],
+  ["Modal Disetor", "KC2800", "Daftar Modal Disetor, Modal Sumbangan, dan Dana Setoran Modal", "GABUNGAN_MODAL_DISETOR"],
+  ["Channeling", "KC3000", "Daftar Penerusan Dana (Channeling)", "GABUNGAN_CHANNELING"],
+  ["Realisasi", "KC3100", "Daftar Persetujuan dan Realisasi Piutang atau Pembiayaan", "GABUNGAN_REALISASI"],
+  ["Pelimpahan", "KC3200", "Daftar Pelimpahan Piutang atau Pembiayaan", "GABUNGAN_PELIMPAHAN"],
+  ["Rincian Aset Lain-lain", "KC3300", "Rincian Aset Lainnya-Lain-Lain", "GABUNGAN_RINCIAN_ASET_LAIN"],
+  ["Rincian Liabilitas Lain-lain", "KC3400", "Rincian Liabilitas Lainnya-Lain-Lain", "GABUNGAN_RINCIAN_LIABILITAS_LAIN"],
+  ["Pendapatan Nonops", "KC3500", "Rincian Pendapatan Nonoperasional Lainnya", "GABUNGAN_PENDAPATAN_NONOPS"],
+  ["Beban Nonops", "KC3600", "Rincian Beban Nonoperasional Lainnya", "GABUNGAN_BEBAN_NONOPS"],
+  ["Surat Berharga", "KC3700", "Daftar Surat Berharga Syariah", "GABUNGAN_SURAT_BERHARGA"],
+  ["Penyertaan", "KC3800", "Daftar Penyertaan Modal", "GABUNGAN_PENYERTAAN"],
+  ["Properti Terbengkalai", "KC3900", "Daftar Properti Terbengkalai", "GABUNGAN_PROPERTI_TERBENGKALAI"],
 ];
 
 // SHA-256 hex dari PIN (lowercase) yang valid. PIN disimpan sbg hash, bukan teks asli.
