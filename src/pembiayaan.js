@@ -53,7 +53,14 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
       // data agunan. Satu baris per agunan; identitas pembiayaan diwarisi dari baris utama,
       // ditandai _isAgunanLanjutan supaya tidak dobel saat hitung total.
       if (!nama && current && hasAgunan && rek && rek === currentRek) {
-        const arow = { ...current, "Baris Asli": `Baris ${r + 1}`, _isAgunanLanjutan: true };
+        // Baris agunan lanjutan HANYA membawa identitas + data agunan. Semua kolom
+        // nominal/keuangan (Baki Debet, Plafon, Tunggakan, CKPN, Jumlah, dst) dikosongkan
+        // supaya tidak menggandakan total, persis seperti form raw (baris lanjutan nominalnya
+        // kosong, hanya berisi agunan tambahan).
+        const KEEP = ["Cabang", "File Sumber", "Nama Nasabah", "Nomor Rekening",
+                      "ID Pihak Lawan", "Nomor Identitas"];
+        const arow = { "Baris Asli": `Baris ${r + 1}`, _isAgunanLanjutan: true };
+        for (const k of KEEP) if (k in current) arow[k] = current[k];
         for (const name of AGUNAN_FIELDS) {
           const idx = colMap[name];
           if (idx == null) continue;
