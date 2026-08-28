@@ -131,6 +131,12 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
       row["Lama Macet (Hari)"] = E.lamaMacetHari(tm, posisi);
       row["Keterangan Pengikatan"] = E.keteranganPengikatan(peng);
 
+      // Hari tunggakan dari form (raw). Jual beli/Ijarah pakai "Tunggakan Hari";
+      // Bagi Hasil pakai "Tunggakan Pokok Hari" -> disatukan ke "Tunggakan Hari".
+      if (!("Tunggakan Hari" in row) && ("Tunggakan Pokok Hari" in row)) {
+        row["Tunggakan Hari"] = row["Tunggakan Pokok Hari"];
+      }
+
       out.push(row);
       current = row;
       currentRek = rek;
