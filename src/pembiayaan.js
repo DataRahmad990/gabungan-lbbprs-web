@@ -289,7 +289,7 @@ export function processPembiayaan(files, period, XLSX) {
     ringkasan.push(["REKONSILIASI vs NERACA (GB0200):", ""]);
     ringkasan.push(["  Total Baki Debet detail per-rekening (NET)", Math.round(toolTotal)]);
     if (sewa > 0) ringkasan.push(["  (+) Piutang Sewa (kode 160) - pos neraca, tanpa rincian per-rekening", Math.round(sewa)]);
-    ringkasan.push(["  = Total sesuai Neraca", Math.round(totalDenganSewa)]);
+    ringkasan.push(["  = Total sesuai Neraca & BPeR (Total Pembiayaan non-bank)", Math.round(totalDenganSewa)]);
     ringkasan.push(["  Total pembiayaan Neraca (Piutang 130 + Bagi Hasil 170 + Ijarah 180)", Math.round(neracaTotal)]);
     if (Math.abs(gap) < Math.max(1000, toolTotal * 0.0005)) {
       ringkasan.push(["  STATUS: SESUAI - cocok dengan Neraca setelah menambahkan Piutang Sewa.", ""]);
