@@ -19,6 +19,29 @@ function findBranchAoa(files, formCode, code, XLSX) {
   return { aoa, name };
 }
 
+// Baca Neraca (GB0200) dari ZIP untuk rekonsiliasi total baki (net). Ambil nilai per-kode:
+// 130 = Piutang (net, sudah termasuk Piutang Sewa 160), 170 = Pembiayaan Bagi Hasil,
+// 180 = Ijarah, 160 = Piutang Sewa (pos akrual, tidak ada rincian per-rekening).
+function readNeraca(files, XLSX) {
+  const name = Object.keys(files).find(n => n.split("/").pop().toUpperCase().includes("GB0200"));
+  if (!name) return null;
+  try {
+    const wb = XLSX.read(files[name], { type: "array" });
+    const sh = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(sh, { header: 1, raw: true, defval: null });
+    const want = [130, 160, 170, 180];
+    const byKode = {};
+    for (const row of aoa) {
+      if (!row) continue;
+      const kode = row.map(v => Number(v)).find(v => want.includes(v));
+      if (kode == null) continue;
+      const nums = row.filter(v => typeof v === "number" && v > 1e6);
+      if (nums.length && byKode[kode] == null) byKode[kode] = Math.max(...nums);
+    }
+    return Object.keys(byKode).length ? byKode : null;
+  } catch { return null; }
+}
+
 // Kolom yang nilainya per-agunan (beda di tiap baris agunan), dipakai untuk menangkap
 // agunan ke-2 dst. yang ada di baris lanjutan (nama kosong, rekening sama).
 const AGUNAN_FIELDS = [
@@ -237,11 +260,51 @@ export function processPembiayaan(files, period, XLSX) {
   // ulang supaya nominal & jumlah rekening tidak dobel.
   const financingRows = allCombined.filter(r => !r._isAgunanLanjutan);
 
-  // RINGKASAN (sederhana)
+  // RINGKASAN + baki per akad + rekonsiliasi vs Neraca (GB0200)
+  const bakiPerAkad = {};
+  for (const row of financingRows) {
+    const ak = row["Akad"] || "?";
+    bakiPerAkad[ak] = (bakiPerAkad[ak] || 0) + (parseFloat(row["Baki Debet"]) || 0);
+  }
+  const toolTotal = Object.values(bakiPerAkad).reduce((a, b) => a + b, 0);
+
   const ringkasan = [["RINGKASAN PEMBIAYAAN", period.periodeLabel],
     ["Total rekening (pembiayaan)", financingRows.length],
-    ["Total baris (termasuk agunan tambahan)", allCombined.length]];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasan), "RINGKASAN");
+    ["Total baris (termasuk agunan tambahan)", allCombined.length],
+    ["", ""],
+    ["Total Baki Debet (NET / harga pokok, basis Neraca)", Math.round(toolTotal)],
+    ["", ""],
+    ["Baki Debet per Akad (NET):", ""]];
+  for (const [ak, v] of Object.entries(bakiPerAkad).sort()) ringkasan.push([`  ${ak}`, Math.round(v)]);
+
+  const neraca = readNeraca(files, XLSX);
+  if (neraca) {
+    const neracaTotal = (neraca[130] || 0) + (neraca[170] || 0) + (neraca[180] || 0);
+    const sewa = neraca[160] || 0;
+    const diff = neracaTotal - toolTotal;
+    const fmt = n => Math.round(n).toLocaleString("id-ID");
+    ringkasan.push(["", ""]);
+    const totalDenganSewa = toolTotal + sewa;
+    const gap = neracaTotal - totalDenganSewa;
+    ringkasan.push(["REKONSILIASI vs NERACA (GB0200):", ""]);
+    ringkasan.push(["  Total Baki Debet detail per-rekening (NET)", Math.round(toolTotal)]);
+    if (sewa > 0) ringkasan.push(["  (+) Piutang Sewa (kode 160) - pos neraca, tanpa rincian per-rekening", Math.round(sewa)]);
+    ringkasan.push(["  = Total sesuai Neraca", Math.round(totalDenganSewa)]);
+    ringkasan.push(["  Total pembiayaan Neraca (Piutang 130 + Bagi Hasil 170 + Ijarah 180)", Math.round(neracaTotal)]);
+    if (Math.abs(gap) < Math.max(1000, toolTotal * 0.0005)) {
+      ringkasan.push(["  STATUS: SESUAI - cocok dengan Neraca setelah menambahkan Piutang Sewa.", ""]);
+    } else {
+      ringkasan.push([`  STATUS: PERIKSA - masih ada selisih Rp${fmt(gap)} setelah Piutang Sewa. Cek form belum terbaca / pos akrual / gross vs net.`, ""]);
+    }
+    ringkasan.push(["  CATATAN: angka detail = NET (harga pokok, setelah margin/ujrah ditangguhkan). Piutang Sewa ditambahkan di level neraca (akrual, tidak ada rincian per-rekening). JANGAN bandingkan ke angka GROSS neraca.", ""]);
+  } else {
+    ringkasan.push(["", ""]);
+    ringkasan.push(["Catatan rekonsiliasi: form Neraca (GB0200) tidak ada di ZIP, jadi tidak dibandingkan otomatis.", ""]);
+    ringkasan.push(["Angka baki = NET (harga pokok). Kalau bandingkan ke Neraca, pakai Piutang/Pembiayaan NET (bukan gross yang masih ada margin/ujrah ditangguhkan).", ""]);
+  }
+  const rsheet = XLSX.utils.aoa_to_sheet(ringkasan);
+  rsheet["!cols"] = [{ wch: 62 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, rsheet, "RINGKASAN");
 
   // SEMUA AKAD
   XLSX.utils.book_append_sheet(wb, sheetFromRows(XLSX, allCombined, OUTPUT_COLS), "SEMUA AKAD");
