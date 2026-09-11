@@ -3,6 +3,7 @@
 import * as S from "./sandiKonven.js";
 import { detectBank, discoverBranches } from "./bank.js";
 import { buildNameMap, lookupName, nameCount } from "./pihakLawan.js";
+import { buildBankNameMap, lookupBankName, bankNameCount } from "./bankNames.js";
 import * as H from "./helpers.js";
 
 function readSheet(bytes, XLSX) {
@@ -93,6 +94,27 @@ function headerLabels(aoa, merges, ncols, ds) {
   return labels;
 }
 
+// Excel writer merangkai XML jadi string raksasa; form seukuran Daftar Tabungan
+// (ratusan ribu baris) bikin prosesnya kehabisan memori. Untuk kasus itu outputnya
+// CSV: isinya lengkap, jauh lebih kecil, dan tetap bisa dibuka Excel.
+function toCsv(cols, data) {
+  const esc = v => {
+    if (v === undefined || v === null) return "";
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    const s = String(v);
+    return /[",\r\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const parts = ["\ufeff" + cols.map(esc).join(";") + "\r\n"];
+  const CHUNK = 5000;
+  let buf = [];
+  for (const row of data) {
+    buf.push(cols.map(c => esc(row[c])).join(";"));
+    if (buf.length >= CHUNK) { parts.push(buf.join("\r\n") + "\r\n"); buf = []; }
+  }
+  if (buf.length) parts.push(buf.join("\r\n") + "\r\n");
+  return new TextEncoder().encode(parts.join(""));
+}
+
 function sheet(XLSX, cols, data) {
   const aoa = [cols, ...data.map(r => cols.map(c => { const v = r[c]; return v === undefined ? "" : v; }))];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -164,10 +186,28 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
       if (seen[lab]) { seen[lab]++; lab = `${labelsByCol[c]} #${seen[labelsByCol[c]]}`; } else seen[lab] = 1;
       colLabel[c] = lab;
     }
+    // Kolom yang isinya SANDI BANK (mis. "Sandi Bank Peserta Sindikasi"): dampingi
+    // dengan kolom nama bank, supaya pembaca tidak cuma dapat kode angka.
+    const bankMap = (cfg.bankNameCols && cfg.bankNameCols.length)
+      ? buildBankNameMap(files, period, XLSX) : null;
+    const bankNameLabel = {};
+    if (bankMap) {
+      for (const c of kept) {
+        const lab = labelsByCol[c] || "";
+        if (!cfg.bankNameCols.some(sub => lab.includes(sub))) continue;
+        bankNameLabel[c] = /^sandi\b/i.test(lab) ? lab.replace(/^sandi\b/i, "Nama") : `Nama untuk ${lab}`;
+      }
+    }
+
     const idCol = kept.find(c => labelsByCol[c].includes("ID Pihak Lawan"));
     const nikCol = kept.find(c => { const l = labelsByCol[c] || ""; return l.includes("No. Identitas") || l.includes("Nomor Identitas"); });
     const hasName = !!(nameCount(nameMap) && idCol !== undefined);
-    const colsOrder = ["Cabang", ...kept.map(c => colLabel[c]), ...(hasName ? ["Nama"] : [])];
+    const colsOrder = ["Cabang"];
+    for (const c of kept) {
+      colsOrder.push(colLabel[c]);
+      if (bankNameLabel[c]) colsOrder.push(bankNameLabel[c]);
+    }
+    if (hasName) colsOrder.push("Nama");
 
     function toRow(code, cells) {
       const row = { "Cabang": code };
@@ -176,6 +216,7 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
         const base = labelsByCol[c];
         if (TMAP[base] && v !== null && v !== "" && v !== 0) v = TR(v, TMAP[base]);
         row[colLabel[c]] = v;
+        if (bankNameLabel[c]) row[bankNameLabel[c]] = lookupBankName(bankMap, cells[c]);
       }
       if (hasName) row["Nama"] = lookupName(nameMap, cells[idCol], nikCol !== undefined ? cells[nikCol] : undefined);
       return row;
@@ -192,13 +233,67 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
     // "SEMUA CABANG" (dapat difilter lewat kolom "Cabang").
     const PER_BRANCH_MAX = 40000;
     const skipBranch = all.length > PER_BRANCH_MAX;
+    // xlsx-js-style merangkai XML tiap sheet jadi SATU string JS. Form besar
+    // (mis. Daftar Tabungan ~148 ribu baris) melewati batas panjang string V8 dan
+    // bikin "RangeError: Invalid array length" saat XLSX.write. Solusinya: pecah
+    // SEMUA CABANG jadi beberapa sheet. Tidak ada baris yang dibuang.
+    const SHEET_MAX = 40000;
+    const chunkCount = Math.max(1, Math.ceil(all.length / SHEET_MAX));
+    // Di atas ambang ini xlsx tidak realistis (80 ribu baris saja sudah 81 MB dan
+    // 12 detik; di atas itu proses kehabisan memori). Keluarkan CSV lengkap.
+    const CSV_MIN_ROWS = 60000;
+    if (all.length >= CSV_MIN_ROWS) {
+      return {
+        filename: `${namePrefix}_${tag}_${period.periodeLabel}.csv`,
+        data: toCsv(colsOrder, all),
+        summary: { jumlah_baris: all.length, format: "csv" },
+        warning: `${title}: ${all.length.toLocaleString("id-ID")} baris, terlalu besar untuk file Excel. Diturunkan sebagai CSV (pemisah titik koma, semua baris lengkap). Buka langsung di Excel.`,
+      };
+    }
+    // Statistik nama bank dihitung sebelum sheet RINGKASAN ditulis.
+    let bankStat = null;
+    if (bankMap && Object.keys(bankNameLabel).length) {
+      const kodeSet = new Set(), belum = new Set();
+      for (const c of Object.keys(bankNameLabel).map(Number)) {
+        for (const code of Object.keys(rawBranch)) {
+          for (const cells of rawBranch[code]) {
+            const sandi = String(cells[c] ?? "").trim().replace(/\.0$/, "");
+            if (!sandi) continue;
+            kodeSet.add(sandi);
+            if (!lookupBankName(bankMap, sandi)) belum.add(sandi);
+          }
+        }
+      }
+      if (kodeSet.size) bankStat = { total: kodeSet.size, bernama: kodeSet.size - belum.size, belum: [...belum].sort() };
+    }
+
     const ringkasan = [[`${title} (${reportPrefix}-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]];
+    if (bankStat) {
+      ringkasan.push([], ["Nama bank peserta", `${bankStat.bernama} dari ${bankStat.total} sandi berhasil dinamai.`]);
+      ringkasan.push(["Sumber nama", `bank pelapor sendiri + form Penempatan pada Bank Lain (KC0500). Total referensi: ${bankNameCount(bankMap)} bank.`]);
+      if (bankStat.belum.length) {
+        ringkasan.push(["Sandi tanpa nama", bankStat.belum.join(", ")]);
+        ringkasan.push(["Catatan", "Sandi di atas dikosongkan, BUKAN ditebak. Nama bank peserta memang tidak tersedia di laporan bulanan ini."]);
+      }
+    }
     if (skipBranch) ringkasan.push([], ["Catatan", `Data > ${PER_BRANCH_MAX.toLocaleString("id-ID")} baris: sheet per-cabang dilewati. Gunakan filter kolom "Cabang" di sheet SEMUA CABANG.`]);
+    if (chunkCount > 1) ringkasan.push([], ["Catatan", `Data ${all.length.toLocaleString("id-ID")} baris dipecah ke ${chunkCount} sheet (SEMUA CABANG 1..${chunkCount}), masing-masing maksimal ${SHEET_MAX.toLocaleString("id-ID")} baris. Ini batas teknis penulis file Excel, bukan data yang terpotong. Total baris di semua sheet = ${all.length.toLocaleString("id-ID")}.`]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ringkasan), "RINGKASAN");
-    XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, all), "SEMUA CABANG");
+    if (chunkCount === 1) {
+      XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, all), "SEMUA CABANG");
+    } else {
+      for (let i = 0; i < chunkCount; i++) {
+        XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, all.slice(i * SHEET_MAX, (i + 1) * SHEET_MAX)), `SEMUA CABANG ${i + 1}`);
+      }
+    }
     if (!skipBranch) for (const code of Object.keys(perBranch).sort()) XLSX.utils.book_append_sheet(wb, sheet(XLSX, colsOrder, perBranch[code]), `Cabang ${code}`);
 
     const summary = { jumlah_baris: all.length };
+    if (bankStat) {
+      summary.sandi_bank_unik = bankStat.total;
+      summary.sandi_bank_bernama = bankStat.bernama;
+      summary.sandi_bank_belum_bernama = bankStat.belum.length;
+    }
     for (const col of colsOrder) {
       if (["Baki Debet", "Nominal", "Jumlah"].some(k => col.includes(k))) {
         let tot = 0; for (const r of all) { const v = parseFloat(r[col]); if (!isNaN(v)) tot += v; }

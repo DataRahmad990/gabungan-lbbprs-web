@@ -121,7 +121,9 @@ async function unzip(bytes) {
 }
 
 function download(filename, u8) {
-  const blob = new Blob([u8], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const csv = filename.toLowerCase().endsWith(".csv");
+  const blob = new Blob([u8], { type: csv ? "text/csv;charset=utf-8"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.className = "dl"; a.textContent = filename;
@@ -150,7 +152,8 @@ goBtn.addEventListener("click", async () => {
       ["Agunan", () => makeFormProcessor("0601", "Daftar Agunan", "GABUNGAN_AGUNAN")(files, period, XLSX)],
       ["Hapus Buku", () => makeFormProcessor("1500", "Aset Produktif Dihapus Buku", "GABUNGAN_HAPUS_BUKU")(files, period, XLSX)],
       ["Liabilitas Lainnya", () => makeFormProcessor("1400", "Rincian Liabilitas Lainnya", "GABUNGAN_LIABILITAS_LAINNYA")(files, period, XLSX)],
-      ["Sindikasi", () => makeFormProcessor("0602", "Daftar Kredit Sindikasi", "GABUNGAN_SINDIKASI")(files, period, XLSX)],
+      ["Sindikasi", () => makeFormProcessor("0602", "Daftar Kredit Sindikasi", "GABUNGAN_SINDIKASI",
+        { bankNameCols: ["Sandi Bank Peserta"] })(files, period, XLSX)],
       ["Tabungan", () => makeFormProcessor("1100", "Daftar Tabungan", "GABUNGAN_TABUNGAN")(files, period, XLSX)],
       ["Deposito", () => makeFormProcessor("1200", "Daftar Deposito", "GABUNGAN_DEPOSITO")(files, period, XLSX)],
       ["Neraca tren", () => processNeracaKonven(files, period, XLSX, priorTrend)],
@@ -160,7 +163,10 @@ goBtn.addEventListener("click", async () => {
       ["Penempatan", () => processPenempatan(files, period, XLSX)],
       ...SYR_FORMS.map(([label, code, title, prefix]) => {
         // Sindikasi: forward-fill Nomor Rekening (1 rekening banyak baris peserta).
-        const cfg = code === "KC4200" ? { ...SYR, fillDown: ["Nomor Rekening"] } : SYR;
+        // Sindikasi juga dikasih kolom nama bank peserta (bukan cuma sandi angka).
+        const cfg = code === "KC4200"
+          ? { ...SYR, fillDown: ["Nomor Rekening"], bankNameCols: ["Sandi Bank Peserta"] }
+          : SYR;
         return [label, () => makeFormProcessor(code, title, prefix, cfg)(files, period, XLSX)];
       }),
       ["Neraca tren", () => processNeraca(files, period, XLSX, priorTrend)],
@@ -173,6 +179,7 @@ goBtn.addEventListener("click", async () => {
         const res = fn();
         if (!res) continue;  // form ga ada di ZIP -> skip
         download(res.filename, res.data);
+        if (res.warning) warnings.push(res.warning);
         Object.assign(summary, Object.fromEntries(Object.entries(res.summary).map(([k, v]) => [`${label}: ${k}`, v])));
       } catch (err) {
         warnings.push(`${label} gagal: ${err.message}`);

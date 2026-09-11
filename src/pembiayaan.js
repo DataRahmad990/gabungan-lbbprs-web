@@ -95,7 +95,10 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
         const peng2 = arow["Jenis Pengikatan"] || "";
         arow["HT Flag"] = E.htFlag(peng2);
         arow["Keterangan Pengikatan"] = E.keteranganPengikatan(peng2);
-        out.push(arow);
+        // JANGAN jadikan baris output tersendiri: itu bikin nasabah & rekening yang sama
+        // muncul berkali-kali (1 baris per agunan). Tempelkan ke rekening induknya saja;
+        // rinciannya tetap utuh di sheet "RINCIAN AGUNAN".
+        (current._agunanExtra ||= []).push(arow);
         continue;
       }
 
@@ -164,6 +167,18 @@ function readFormData(files, formCode, colMap, posisi, XLSX) {
       current = row;
       currentRek = rek;
     }
+  }
+  // Ringkasan agunan per rekening: berapa agunan, dan jenis agunan selain yang utama.
+  for (const row of out) {
+    const extra = row._agunanExtra || [];
+    const punyaAgunanUtama =
+      String(row["Jenis Agunan"] ?? "").trim() !== "" ||
+      String(row["Kode/No Agunan"] ?? "").trim() !== "";
+    row["Jumlah Agunan"] = (punyaAgunanUtama ? 1 : 0) + extra.length;
+    row["Agunan Lainnya"] = extra
+      .map(a => String(a["Jenis Agunan"] ?? "").trim())
+      .filter(Boolean)
+      .join("; ");
   }
   return out;
 }
@@ -270,7 +285,8 @@ export function processPembiayaan(files, period, XLSX) {
 
   const ringkasan = [["RINGKASAN PEMBIAYAAN", period.periodeLabel],
     ["Total rekening (pembiayaan)", financingRows.length],
-    ["Total baris (termasuk agunan tambahan)", allCombined.length],
+    ["Total baris di SEMUA AKAD (= jumlah rekening, tidak dobel)", allCombined.length],
+    ["Total agunan terdaftar (lihat sheet RINCIAN AGUNAN)", allCombined.reduce((n, r) => n + (parseInt(r["Jumlah Agunan"], 10) || 0), 0)],
     ["", ""],
     ["Total Baki Debet (NET / harga pokok, basis Neraca)", Math.round(toolTotal)],
     ["", ""],
@@ -312,6 +328,33 @@ export function processPembiayaan(files, period, XLSX) {
   for (const s of akadSheets) {
     XLSX.utils.book_append_sheet(wb, sheetFromRows(XLSX, s.rows, s.cols), s.name.slice(0, 31));
   }
+  // RINCIAN AGUNAN: 1 baris per agunan (termasuk agunan ke-2 dst). Dipisah dari
+  // SEMUA AKAD supaya daftar pembiayaan tetap 1 baris per rekening.
+  const AGUNAN_COLS = ["Cabang", "Akad", "Nama Nasabah", "Nomor Rekening", "Agunan Ke",
+    "Jenis Agunan", "Jenis Pengikatan", "Kode/No Agunan", "Tgl Penilaian Terakhir",
+    "Nilai Agunan", "Nilai Dapat Diperhitungkan", "Bagian Dijamin", "Golongan Penjamin",
+    "Karat", "Berat", "HT Flag", "Keterangan Pengikatan", "Baris Asli"];
+  const agunanRows = [];
+  for (const row of allCombined) {
+    const punyaUtama =
+      String(row["Jenis Agunan"] ?? "").trim() !== "" ||
+      String(row["Kode/No Agunan"] ?? "").trim() !== "";
+    const semua = [];
+    if (punyaUtama) semua.push(row);
+    for (const a of (row._agunanExtra || [])) semua.push(a);
+    semua.forEach((a, i) => {
+      const out = { "Akad": row["Akad"], "Agunan Ke": i + 1 };
+      for (const c of AGUNAN_COLS) {
+        if (c === "Akad" || c === "Agunan Ke") continue;
+        out[c] = a[c] !== undefined ? a[c] : row[c];
+      }
+      agunanRows.push(out);
+    });
+  }
+  if (agunanRows.length) {
+    XLSX.utils.book_append_sheet(wb, sheetFromRows(XLSX, agunanRows, AGUNAN_COLS), "RINCIAN AGUNAN");
+  }
+
   // REF sheets
   XLSX.utils.book_append_sheet(wb, refSheet(XLSX, REF_PENGIKATAN_ROWS), "REF PENGIKATAN");
   XLSX.utils.book_append_sheet(wb, refSheet(XLSX, REF_AGUNAN_ROWS), "REF AGUNAN");
