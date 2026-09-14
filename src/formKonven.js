@@ -3,7 +3,7 @@
 import * as S from "./sandiKonven.js";
 import { detectBank, discoverBranches } from "./bank.js";
 import { buildNameMap, lookupName, nameCount } from "./pihakLawan.js";
-import { buildBankNameMap, lookupBankName, bankNameCount } from "./bankNames.js";
+import { buildBankNameMap, lookupBankName, lookupBankSumber } from "./bankNames.js";
 import * as H from "./helpers.js";
 
 function readSheet(bytes, XLSX) {
@@ -205,7 +205,7 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
     const colsOrder = ["Cabang"];
     for (const c of kept) {
       colsOrder.push(colLabel[c]);
-      if (bankNameLabel[c]) colsOrder.push(bankNameLabel[c]);
+      if (bankNameLabel[c]) colsOrder.push(bankNameLabel[c], `Sumber ${bankNameLabel[c]}`);
     }
     if (hasName) colsOrder.push("Nama");
 
@@ -216,7 +216,10 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
         const base = labelsByCol[c];
         if (TMAP[base] && v !== null && v !== "" && v !== 0) v = TR(v, TMAP[base]);
         row[colLabel[c]] = v;
-        if (bankNameLabel[c]) row[bankNameLabel[c]] = lookupBankName(bankMap, cells[c]);
+        if (bankNameLabel[c]) {
+          row[bankNameLabel[c]] = lookupBankName(bankMap, cells[c]);
+          row[`Sumber ${bankNameLabel[c]}`] = lookupBankSumber(bankMap, cells[c]);
+        }
       }
       if (hasName) row["Nama"] = lookupName(nameMap, cells[idCol], nikCol !== undefined ? cells[nikCol] : undefined);
       return row;
@@ -253,27 +256,31 @@ export function makeFormProcessor(formCode, title, namePrefix, cfg = {}) {
     // Statistik nama bank dihitung sebelum sheet RINGKASAN ditulis.
     let bankStat = null;
     if (bankMap && Object.keys(bankNameLabel).length) {
-      const kodeSet = new Set(), belum = new Set();
+      const kodeSet = new Set(), belum = new Set(), perSumber = {};
       for (const c of Object.keys(bankNameLabel).map(Number)) {
         for (const code of Object.keys(rawBranch)) {
           for (const cells of rawBranch[code]) {
             const sandi = String(cells[c] ?? "").trim().replace(/\.0$/, "");
-            if (!sandi) continue;
+            if (!sandi || kodeSet.has(sandi)) continue;
             kodeSet.add(sandi);
             if (!lookupBankName(bankMap, sandi)) belum.add(sandi);
+            else { const sb = lookupBankSumber(bankMap, sandi); perSumber[sb] = (perSumber[sb] || 0) + 1; }
           }
         }
       }
-      if (kodeSet.size) bankStat = { total: kodeSet.size, bernama: kodeSet.size - belum.size, belum: [...belum].sort() };
+      if (kodeSet.size) bankStat = { total: kodeSet.size, bernama: kodeSet.size - belum.size, belum: [...belum].sort(), perSumber };
     }
 
     const ringkasan = [[`${title} (${reportPrefix}-${formCode}) - ${tag}`, period.periodeLabel], [], ["Total baris", all.length]];
     if (bankStat) {
       ringkasan.push([], ["Nama bank peserta", `${bankStat.bernama} dari ${bankStat.total} sandi berhasil dinamai.`]);
-      ringkasan.push(["Sumber nama", `bank pelapor sendiri + form Penempatan pada Bank Lain (KC0500). Total referensi: ${bankNameCount(bankMap)} bank.`]);
+      ringkasan.push(["Sumber nama", Object.entries(bankStat.perSumber).map(([k, v]) => `${k}: ${v}`).join("; ")]);
+      if (bankStat.perSumber["Daftar Sandi Bank 2019"]) {
+        ringkasan.push(["Perhatian", "Nama bersumber Daftar Sandi Bank 2019 bisa berupa nama lama bila bank berganti nama atau bergabung setelah 2019. Cek kolom Sumber di sheet SEMUA CABANG."]);
+      }
       if (bankStat.belum.length) {
         ringkasan.push(["Sandi tanpa nama", bankStat.belum.join(", ")]);
-        ringkasan.push(["Catatan", "Sandi di atas dikosongkan, BUKAN ditebak. Nama bank peserta memang tidak tersedia di laporan bulanan ini."]);
+        ringkasan.push(["Catatan", "Sandi di atas dikosongkan, BUKAN ditebak: tidak ada di ZIP maupun Daftar Sandi Bank 2019 (kemungkinan bank baru setelah 2019)."]);
       }
     }
     if (skipBranch) ringkasan.push([], ["Catatan", `Data > ${PER_BRANCH_MAX.toLocaleString("id-ID")} baris: sheet per-cabang dilewati. Gunakan filter kolom "Cabang" di sheet SEMUA CABANG.`]);

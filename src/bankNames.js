@@ -4,15 +4,27 @@
 // "Sandi Bank Peserta Sindikasi" berupa kode 6 digit, tanpa nama. Nama bank tidak
 // ada di form itu, jadi harus diambil dari form lain di ZIP yang sama.
 //
-// Sumber yang dipakai (semuanya dari data pelapor, tidak ada daftar karangan):
-//   1. Bank pelapor sendiri  : kode bank dari nama file ZIP + nama dari GB0200.
-//   2. Form Penempatan pada Bank Lain syariah (KC0500): kolom 4 = Sandi Bank,
-//      kolom 5 = Nama Bank. Ini satu-satunya form labul yang memasangkan keduanya.
+// Urutan sumber, dari yang paling baru ke cadangan:
+//   1. Daftar manual (bankRegistry.js), untuk membetulkan nama tertentu.
+//   2. Bank pelapor sendiri: kode bank dari nama file ZIP + nama dari GB0200.
+//   3. Form Penempatan pada Bank Lain syariah (KC0500) di ZIP yang sama: kolom 4 = Sandi,
+//      kolom 5 = Nama Bank. Namanya sesuai posisi laporan, jadi lebih baru dari daftar.
+//   4. Daftar Sandi Bank (sandiBankData.js), referensi laporan bulanan posisi 2019.
+//      Menutup sebagian besar BPR/BPRS, tetapi bank yang berganti nama setelah 2019 bisa
+//      tertulis nama lama. Karena itu sumber setiap nama ikut ditampilkan.
 //
 // Kode yang tidak ketemu SENGAJA dibiarkan kosong, bukan ditebak.
 import * as H from "./helpers.js";
 import { detectBank } from "./bank.js";
 import { BANK_REGISTRY } from "./bankRegistry.js";
+import { DAFTAR_SANDI_BANK } from "./sandiBankData.js";
+
+export const SUMBER_LABEL = {
+  manual: "Daftar manual",
+  pelapor: "Bank pelapor",
+  penempatan: "Form Penempatan (KC0500)",
+  daftar2019: "Daftar Sandi Bank 2019",
+};
 
 export function normSandi(v) {
   let s = String(v == null ? "" : v).trim();
@@ -30,7 +42,7 @@ export function buildBankNameMap(files, period, XLSX) {
       const { nama } = detectBank(files, XLSX);
       if (nama && nama !== "BANK") {
         bySandi[normSandi(period.kodeBank)] = nama;
-        sumber[normSandi(period.kodeBank)] = "bank pelapor";
+        sumber[normSandi(period.kodeBank)] = SUMBER_LABEL.pelapor;
       }
     } catch { /* abaikan */ }
   }
@@ -46,15 +58,20 @@ export function buildBankNameMap(files, period, XLSX) {
         const sandi = normSandi(H.cell(aoa, r, 4));
         const nama = String(H.cell(aoa, r, 5) ?? "").trim();
         if (!sandi || !nama || sandi.toUpperCase() === "JUMLAH") continue;
-        if (!(sandi in bySandi)) { bySandi[sandi] = nama; sumber[sandi] = "form penempatan (KC0500)"; }
+        if (!(sandi in bySandi)) { bySandi[sandi] = nama; sumber[sandi] = SUMBER_LABEL.penempatan; }
       }
     } catch { /* lanjut file berikutnya */ }
   }
 
-  // 3. Daftar manual (bankRegistry.js) - menang atas deteksi otomatis.
+  // 4. Daftar Sandi Bank 2019, hanya untuk sandi yang belum dikenal dari ZIP.
+  for (const [sandi, nama] of Object.entries(DAFTAR_SANDI_BANK)) {
+    if (!(sandi in bySandi)) { bySandi[sandi] = nama; sumber[sandi] = SUMBER_LABEL.daftar2019; }
+  }
+
+  // 1. Daftar manual (bankRegistry.js) menang atas semua sumber lain.
   for (const [sandi, nama] of Object.entries(BANK_REGISTRY || {})) {
     const k = normSandi(sandi);
-    if (k && String(nama || "").trim()) { bySandi[k] = String(nama).trim(); sumber[k] = "daftar manual"; }
+    if (k && String(nama || "").trim()) { bySandi[k] = String(nama).trim(); sumber[k] = SUMBER_LABEL.manual; }
   }
 
   return { bySandi, sumber };
@@ -63,6 +80,11 @@ export function buildBankNameMap(files, period, XLSX) {
 export function lookupBankName(map, sandi) {
   if (!map || !map.bySandi) return "";
   return map.bySandi[normSandi(sandi)] || "";
+}
+
+export function lookupBankSumber(map, sandi) {
+  if (!map || !map.sumber) return "";
+  return map.sumber[normSandi(sandi)] || "";
 }
 
 export function bankNameCount(map) {
